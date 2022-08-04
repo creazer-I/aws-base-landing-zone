@@ -1,0 +1,1129 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Default account baseline stackset
+Parameters:
+  OUsId:
+    Type: String
+    Description: Enter Organizational Unit Id where the stack set should be deployed
+  RetainStacksetOnRemoval:
+    Type: String
+    Default: 'false'
+  AutoDeploymentEnable:
+    Type: String
+    Default: 'true'
+  Region:
+    Type: String
+    Description: 'Region to Deploy Account Baseline '
+    Default: ap-southeast-1
+Resources:
+  configrole:
+    Type: 'AWS::CloudFormation::StackSet'
+    DeletionPolicy: Retain
+    Properties:
+      StackSetName: landing-zone-config-role
+      Description: aws config role
+      PermissionModel: SERVICE_MANAGED
+      Capabilities:
+        - CAPABILITY_IAM
+        - CAPABILITY_NAMED_IAM
+      AutoDeployment:
+        Enabled: !Ref AutoDeploymentEnable
+        RetainStacksOnAccountRemoval: !Ref RetainStacksetOnRemoval
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: NONE
+            OrganizationalUnitIds:
+              - !Ref OUsId
+          Regions:
+            - !Ref Region
+      ManagedExecution:
+        Active: true
+      TemplateBody: |
+        {
+        "AWSTemplateFormatVersion": "2010-09-09",
+            "Description": "Config Role",
+        "Parameters":{
+        "RoleName":{
+            "Type":"String",
+            "Default":"AWS-Landing-Zone-ConfigRecorderRole"
+        }
+        },
+            "Resources": {
+                "ConfigRecorderRole": {
+                    "Type": "AWS::IAM::Role",
+                    "Properties": {
+                        "RoleName": {"Ref":"RoleName"},
+                        "AssumeRolePolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Principal": {
+                                        "Service": [
+                                            "config.amazonaws.com"
+                                        ]
+                                    },
+                                    "Action": [
+                                        "sts:AssumeRole"
+                                    ]
+                                }
+                            ]
+                        },
+                        "Path": "/",
+                        "ManagedPolicyArns": [
+                            "arn:aws:iam::aws:policy/service-role/AWSConfigRole"
+                        ]
+                    }
+                }
+            }}
+  enableconfig:
+    Type: 'AWS::CloudFormation::StackSet'
+    DeletionPolicy: Retain
+    DependsOn:
+      - configrole
+    Properties:
+      StackSetName: landing-zone-enable-config
+      Description: aws config
+      PermissionModel: SERVICE_MANAGED
+      Capabilities:
+        - CAPABILITY_IAM
+        - CAPABILITY_NAMED_IAM
+      AutoDeployment:
+        Enabled: !Ref AutoDeploymentEnable
+        RetainStacksOnAccountRemoval: !Ref RetainStacksetOnRemoval
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: NONE
+            OrganizationalUnitIds:
+              - !Ref OUsId
+          Regions:
+            - ap-northeast-1
+            - ap-northeast-2
+            - ap-south-1
+            - ap-southeast-1
+            - ap-southeast-2
+            - ca-central-1
+            - eu-central-1
+            - eu-west-1
+            - eu-west-2
+            - eu-west-3
+            - sa-east-1
+            - us-east-1
+            - us-east-2
+            - us-west-1
+            - us-west-2
+      ManagedExecution:
+        Active: true
+      Parameters:
+        - ParameterKey: BucketName
+          ParameterValue: '{{resolve:ssm:s3bucketname:1}}'
+      TemplateBody: |
+        {
+         "AWSTemplateFormatVersion": "2010-09-09",
+         "Description": "creates aws config across region",
+         "Parameters": {
+             "AllSupported": {
+                 "Type": "String",
+                 "Default": "true",
+                 "Description": "Indicates whether to record all supported resource types.",
+                 "AllowedValues": [
+                     "true",
+                     "false"
+                 ]
+             },
+             "IncludeGlobalResourceTypes": {
+                 "Type": "String",
+                 "Default": "true",
+                 "Description": "Indicates whether AWS Config records all supported global resource types.",
+                 "AllowedValues": [
+                     "true",
+                     "false"
+                 ]
+             },
+             "ResourceTypes": {
+                 "Type": "CommaDelimitedList",
+                 "Description": "A list of valid AWS resource types to include in this recording group. Eg. AWS::CloudTrail::Trail",
+                 "Default": "AWS::CloudTrail::Trail"
+             },
+             "DeliveryChannelName": {
+                 "Type": "String",
+                 "Default": "DeliveryChannel",
+                 "Description": "The name of the delivery channel."
+             },
+             "Frequency": {
+                 "Type": "String",
+                 "Default": "24hours",
+                 "Description": "The frequency with which AWS Config delivers configuration snapshots.",
+                 "AllowedValues": [
+                     "1hour",
+                     "3hours",
+                     "6hours",
+                     "12hours",
+                     "24hours"
+                 ]
+             },
+             "BucketName": {
+                 "Type": "String",
+                 "Default": "",
+                 "Description": "Bucket name from the Logging Account"
+             },
+             "EnableConfigRuleComplianceChangeAlarm": {
+                 "Type": "String",
+                 "Description": "Enable notifications for AWS Config rule compliance status changes?",
+                 "Default": true,
+                 "AllowedValues": [
+                     true,
+                     false
+                 ]
+             },
+             "EnableEncryptedVolumesRule": {
+                 "Type": "String",
+                 "Description": "Enables the AWS managed encrypted-volumes config rule. To disable, change the parameter value to false.",
+                 "Default": true,
+                 "AllowedValues": [
+                     true,
+                     false
+                 ]
+             },
+             "EnableRdsEncryptionRule": {
+                 "Type": "String",
+                 "Description": "Enables the AWS managed rds-storage-encrypted config rule. To disable, change the parameter value to false.",
+                 "Default": true,
+                 "AllowedValues": [
+                     true,
+                     false
+                 ]
+             },
+             "EnableS3PublicReadRule": {
+                 "Type": "String",
+                 "Description": "Enables the AWS managed s3-bucket-public-read-prohibited config rule. To disable, change the parameter value to false.",
+                 "Default": true,
+                 "AllowedValues": [
+                     true,
+                     false
+                 ]
+             },
+             "EnableS3PublicWriteRule": {
+                 "Type": "String",
+                 "Description": "Enables the AWS managed s3-bucket-public-write-prohibited config rule. To disable, change the parameter value to false.",
+                 "Default": true,
+                 "AllowedValues": [
+                     true,
+                     false
+                 ]
+             },
+             "EnableS3ServerSideEncryptionRule": {
+                 "Type": "String",
+                 "Description": "Enables the AWS managed s3-bucket-server-side-encryption-enabled config rule. To enable, change the parameter value to true.",
+                 "Default": false,
+                 "AllowedValues": [
+                     true,
+                     false
+                 ]
+             },
+             "EnableRestrictedCommonPortsRule": {
+                 "Type": "String",
+                 "Description": "Enables the AWS managed restricted-common-ports config rule. To disable, change the parameter value to false.",
+                 "Default": true,
+                 "AllowedValues": [
+                     true,
+                     false
+                 ]
+             },
+             "EnableRestrictedSshRule": {
+                 "Type": "String",
+                 "Description": "Enables the AWS managed restricted-ssh config rule. To disable, change the parameter value to false.",
+                 "Default": true,
+                 "AllowedValues": [
+                     true,
+                     false
+                 ]
+             },
+             "MaximumExecutionFrequency": {
+                 "Type": "String",
+                 "Default": "TwentyFour_Hours",
+                 "Description": "The frequency that you want AWS Config to run evaluations for the rule.",
+                 "MinLength": "1",
+                 "ConstraintDescription": "This parameter is required.",
+                 "AllowedValues": [
+                     "One_Hour",
+                     "Three_Hours",
+                     "Six_Hours",
+                     "Twelve_Hours",
+                     "TwentyFour_Hours"
+                 ]
+             },
+             "blockedPort1": {
+                 "Type": "String",
+                 "Default": "20",
+                 "Description": "Blocked TCP port number."
+             },
+             "blockedPort2": {
+                 "Type": "String",
+                 "Default": "21",
+                 "Description": "Blocked TCP port number."
+             },
+             "blockedPort3": {
+                 "Type": "String",
+                 "Default": "3389",
+                 "Description": "Blocked TCP port number."
+             },
+             "blockedPort4": {
+                 "Type": "String",
+                 "Default": "3306",
+                 "Description": "Blocked TCP port number."
+             },
+             "blockedPort5": {
+                 "Type": "String",
+                 "Default": "4333",
+                 "Description": "Blocked TCP port number."
+             }
+         },
+         "Conditions": {
+             "IsAllSupported": {
+                 "Fn::Equals": [
+                     {
+                         "Ref": "AllSupported"
+                     },
+                     "true"
+                 ]
+             },
+             "IsGeneratedDeliveryChannelName": {
+                 "Fn::Equals": [
+                     {
+                         "Ref": "DeliveryChannelName"
+                     },
+                     ""
+                 ]
+             },
+             "EnableConfigRuleChangeNotification": {
+                 "Fn::Equals": [
+                     {
+                         "Ref": "EnableConfigRuleComplianceChangeAlarm"
+                     },
+                     "true"
+                 ]
+             },
+             "EnableEncryptedVolumes": {
+                 "Fn::Equals": [
+                     {
+                         "Ref": "EnableEncryptedVolumesRule"
+                     },
+                     "true"
+                 ]
+             },
+             "EnableRdsEncryption": {
+                 "Fn::Equals": [
+                     {
+                         "Ref": "EnableRdsEncryptionRule"
+                     },
+                     "true"
+                 ]
+             },
+             "EnableS3PublicRead": {
+                 "Fn::Equals": [
+                     {
+                         "Ref": "EnableS3PublicReadRule"
+                     },
+                     "true"
+                 ]
+             },
+             "EnableS3PublicWrite": {
+                 "Fn::Equals": [
+                     {
+                         "Ref": "EnableS3PublicWriteRule"
+                     },
+                     "true"
+                 ]
+             },
+             "EnableS3ServerSideEncryption": {
+                 "Fn::Equals": [
+                     {
+                         "Ref": "EnableS3ServerSideEncryptionRule"
+                     },
+                     "true"
+                 ]
+             },
+             "EnableRestrictedCommonPortsPolicy": {
+                 "Fn::Equals": [
+                     {
+                         "Ref": "EnableRestrictedCommonPortsRule"
+                     },
+                     "true"
+                 ]
+             },
+             "EnableRestrictedSshPolicy": {
+                 "Fn::Equals": [
+                     {
+                         "Ref": "EnableRestrictedSshRule"
+                     },
+                     "true"
+                 ]
+             },
+             "blockedPort1": {
+                 "Fn::Not": [
+                     {
+                         "Fn::Equals": [
+                             "",
+                             {
+                                 "Ref": "blockedPort1"
+                             }
+                         ]
+                     }
+                 ]
+             },
+             "blockedPort2": {
+                 "Fn::Not": [
+                     {
+                         "Fn::Equals": [
+                             "",
+                             {
+                                 "Ref": "blockedPort2"
+                             }
+                         ]
+                     }
+                 ]
+             },
+             "blockedPort3": {
+                 "Fn::Not": [
+                     {
+                         "Fn::Equals": [
+                             "",
+                             {
+                                 "Ref": "blockedPort3"
+                             }
+                         ]
+                     }
+                 ]
+             },
+             "blockedPort4": {
+                 "Fn::Not": [
+                     {
+                         "Fn::Equals": [
+                             "",
+                             {
+                                 "Ref": "blockedPort4"
+                             }
+                         ]
+                     }
+                 ]
+             },
+             "blockedPort5": {
+                 "Fn::Not": [
+                     {
+                         "Fn::Equals": [
+                             "",
+                             {
+                                 "Ref": "blockedPort5"
+                             }
+                         ]
+                     }
+                 ]
+             }
+         },
+         "Mappings": {
+             "Settings": {
+                 "FrequencyMap": {
+                     "1hour": "One_Hour",
+                     "3hours": "Three_Hours",
+                     "6hours": "Six_Hours",
+                     "12hours": "Twelve_Hours",
+                     "24hours": "TwentyFour_Hours"
+                 }
+             }
+         },
+         "Resources": {
+             "ConfigRecorder": {
+                 "Type": "AWS::Config::ConfigurationRecorder",
+                 "Properties": {
+                     "RoleARN": {
+                     "Fn::Sub": "arn:aws:iam::${AWS::AccountId}:role/AWS-Landing-Zone-ConfigRecorderRole"},
+                     "RecordingGroup": {
+                         "AllSupported": {
+                             "Ref": "AllSupported"
+                         },
+                         "IncludeGlobalResourceTypes": {
+                             "Ref": "IncludeGlobalResourceTypes"
+                         },
+                         "ResourceTypes": {
+                             "Fn::If": [
+                                 "IsAllSupported",
+                                 {
+                                     "Ref": "AWS::NoValue"
+                                 },
+                                 {
+                                     "Ref": "ResourceTypes"
+                                 }
+                             ]
+                         }
+                     }
+                 }
+             },
+             "ConfigDeliveryChannel": {
+                 "Type": "AWS::Config::DeliveryChannel",
+                 "Properties": {
+                     "Name": {
+                         "Fn::If": [
+                             "IsGeneratedDeliveryChannelName",
+                             {
+                                 "Ref": "AWS::NoValue"
+                             },
+                             {
+                                 "Ref": "DeliveryChannelName"
+                             }
+                         ]
+                     },
+                     "ConfigSnapshotDeliveryProperties": {
+                         "DeliveryFrequency": {
+                             "Fn::FindInMap": [
+                                 "Settings",
+                                 "FrequencyMap",
+                                 {
+                                     "Ref": "Frequency"
+                                 }
+                             ]
+                         }
+                     },
+                     "S3BucketName": {
+                         "Ref": "BucketName"
+                     }
+                 }
+             },
+             "ConfigRuleComplianceChangeEvent": {
+                 "Type": "AWS::Events::Rule",
+                 "DependsOn": [
+                     "ConfigRecorder"
+                 ],
+                 "Condition": "EnableConfigRuleChangeNotification",
+                 "Properties": {
+                     "Name": "Config-Rule-Compliance-Change-CloudWatch-Rule",
+                     "Description": "Landing Zone rule to send notification on Config Rule compliance changes.",
+                     "EventPattern": {
+                         "source": [
+                             "aws.config"
+                         ],
+                         "detail-type": [
+                             "Config Rules Compliance Change"
+                         ]
+                     },
+                     "State": "ENABLED"
+                 }
+             },
+             "CheckForEncryptedVolumes": {
+                 "Type": "AWS::Config::ConfigRule",
+                 "DependsOn": [
+                     "ConfigRecorder"
+                 ],
+                 "Condition": "EnableEncryptedVolumes",
+                 "Properties": {
+                     "Description": "Checks whether EBS volumes that are in an attached state are encrypted.",
+                     "Source": {
+                         "Owner": "AWS",
+                         "SourceIdentifier": "ENCRYPTED_VOLUMES"
+                     },
+                     "Scope": {
+                         "ComplianceResourceTypes": [
+                             "AWS::EC2::Volume"
+                         ]
+                     }
+                 }
+             },
+             "CheckForRdsEncryption": {
+                 "Type": "AWS::Config::ConfigRule",
+                 "DependsOn": [
+                     "ConfigRecorder"
+                 ],
+                 "Condition": "EnableRdsEncryption",
+                 "Properties": {
+                     "Description": "Checks whether storage encryption is enabled for your RDS DB instances.",
+                     "Source": {
+                         "Owner": "AWS",
+                         "SourceIdentifier": "RDS_STORAGE_ENCRYPTED"
+                     },
+                     "Scope": {
+                         "ComplianceResourceTypes": [
+                             "AWS::RDS::DBInstance"
+                         ]
+                     }
+                 }
+             },
+             "CheckForS3PublicRead": {
+                 "Type": "AWS::Config::ConfigRule",
+                 "DependsOn": [
+                     "ConfigRecorder"
+                 ],
+                 "Condition": "EnableS3PublicRead",
+                 "Properties": {
+                     "Description": "Checks that your S3 buckets do not allow public read access. If an S3 bucket policy or bucket ACL allows public read access, the bucket is noncompliant.",
+                     "Source": {
+                         "Owner": "AWS",
+                         "SourceIdentifier": "S3_BUCKET_PUBLIC_READ_PROHIBITED"
+                     },
+                     "Scope": {
+                         "ComplianceResourceTypes": [
+                             "AWS::S3::Bucket"
+                         ]
+                     }
+                 }
+             },
+             "CheckForS3PublicWrite": {
+                 "Type": "AWS::Config::ConfigRule",
+                 "DependsOn": [
+                     "ConfigRecorder"
+                 ],
+                 "Condition": "EnableS3PublicWrite",
+                 "Properties": {
+                     "Description": "Checks that your S3 buckets do not allow public write access. If an S3 bucket policy or bucket ACL allows public write access, the bucket is noncompliant.",
+                     "Source": {
+                         "Owner": "AWS",
+                         "SourceIdentifier": "S3_BUCKET_PUBLIC_WRITE_PROHIBITED"
+                     },
+                     "Scope": {
+                         "ComplianceResourceTypes": [
+                             "AWS::S3::Bucket"
+                         ]
+                     }
+                 }
+             },
+             "CheckForS3ServerSideEncryption": {
+                 "Type": "AWS::Config::ConfigRule",
+                 "DependsOn": [
+                     "ConfigRecorder"
+                 ],
+                 "Condition": "EnableS3ServerSideEncryption",
+                 "Properties": {
+                     "Description": "Checks for explicit denies on put-object requests without server side encryption.",
+                     "Source": {
+                         "Owner": "AWS",
+                         "SourceIdentifier": "S3_BUCKET_SERVER_SIDE_ENCRYPTION_ENABLED"
+                     },
+                     "Scope": {
+                         "ComplianceResourceTypes": [
+                             "AWS::S3::Bucket"
+                         ]
+                     }
+                 }
+             },
+             "CheckForRestrictedCommonPortsPolicy": {
+                 "Type": "AWS::Config::ConfigRule",
+                 "DependsOn": [
+                     "ConfigRecorder"
+                 ],
+                 "Condition": "EnableRestrictedCommonPortsPolicy",
+                 "Properties": {
+                     "Description": "Checks whether security groups that are in use disallow unrestricted incoming TCP traffic to the specified ports.",
+                     "InputParameters": {
+                         "blockedPort1": {
+                             "Fn::If": [
+                                 "blockedPort1",
+                                 {
+                                     "Ref": "blockedPort1"
+                                 },
+                                 {
+                                     "Ref": "AWS::NoValue"
+                                 }
+                             ]
+                         },
+                         "blockedPort2": {
+                             "Fn::If": [
+                                 "blockedPort2",
+                                 {
+                                     "Ref": "blockedPort2"
+                                 },
+                                 {
+                                     "Ref": "AWS::NoValue"
+                                 }
+                             ]
+                         },
+                         "blockedPort3": {
+                             "Fn::If": [
+                                 "blockedPort3",
+                                 {
+                                     "Ref": "blockedPort3"
+                                 },
+                                 {
+                                     "Ref": "AWS::NoValue"
+                                 }
+                             ]
+                         },
+                         "blockedPort4": {
+                             "Fn::If": [
+                                 "blockedPort4",
+                                 {
+                                     "Ref": "blockedPort4"
+                                 },
+                                 {
+                                     "Ref": "AWS::NoValue"
+                                 }
+                             ]
+                         },
+                         "blockedPort5": {
+                             "Fn::If": [
+                                 "blockedPort5",
+                                 {
+                                     "Ref": "blockedPort5"
+                                 },
+                                 {
+                                     "Ref": "AWS::NoValue"
+                                 }
+                             ]
+                         }
+                     },
+                     "Scope": {
+                         "ComplianceResourceTypes": [
+                             "AWS::EC2::SecurityGroup"
+                         ]
+                     },
+                     "Source": {
+                         "Owner": "AWS",
+                         "SourceIdentifier": "RESTRICTED_INCOMING_TRAFFIC"
+                     }
+                 }
+             },
+             "CheckForRestrictedSshPolicy": {
+                 "Type": "AWS::Config::ConfigRule",
+                 "DependsOn": [
+                     "ConfigRecorder"
+                 ],
+                 "Condition": "EnableRestrictedSshPolicy",
+                 "Properties": {
+                     "Description": "Checks whether security groups that are in use disallow unrestricted incoming SSH traffic.",
+                     "Scope": {
+                         "ComplianceResourceTypes": [
+                             "AWS::EC2::SecurityGroup"
+                         ]
+                     },
+                     "Source": {
+                         "Owner": "AWS",
+                         "SourceIdentifier": "INCOMING_SSH_DISABLED"
+                     }
+                 }
+             }
+         }}
+  enablecloudtrail:
+    Type: 'AWS::CloudFormation::StackSet'
+    DeletionPolicy: Retain
+    Properties:
+      StackSetName: landing-zone-cloudtrail
+      Description: Enables cloudtrail across region
+      PermissionModel: SERVICE_MANAGED
+      Capabilities:
+        - CAPABILITY_IAM
+        - CAPABILITY_NAMED_IAM
+      AutoDeployment:
+        Enabled: !Ref AutoDeploymentEnable
+        RetainStacksOnAccountRemoval: !Ref RetainStacksetOnRemoval
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: NONE
+            OrganizationalUnitIds:
+              - !Ref OUsId
+          Regions:
+            - !Ref Region
+      ManagedExecution:
+        Active: true
+      Parameters:
+        - ParameterKey: TrailBucket
+          ParameterValue: '{{resolve:ssm:s3bucketname:1}}'
+      TemplateBody: >
+        {
+
+        "AWSTemplateFormatVersion": "2010-09-09",
+
+        "Description": "Enable AWS CloudTrail. This template creates a
+        CloudTrail trail, an Amazon S3 bucket where logs are published, and an
+        Amazon SNS topic where notifications are sent.",
+
+        "Parameters": {
+            "EnableLogFileValidation": {
+                "Type": "String",
+                "Default": "true",
+                "Description": "Indicates whether CloudTrail validates the integrity of log files.",
+                "AllowedValues": [
+                    "true",
+                    "false"
+                ]
+            },
+            "IncludeGlobalEvents": {
+                "Type": "String",
+                "Default": "false",
+                "Description": "Indicates whether the trail is publishing events from global services, such as IAM, to the log files.",
+                "AllowedValues": [
+                    "true",
+                    "false"
+                ]
+            },
+            "MultiRegion": {
+                "Type": "String",
+                "Default": "false",
+                "Description": "Indicates whether the CloudTrail trail is created in the region in which you create the stack (false) or in all regions (true).",
+                "AllowedValues": [
+                    "true",
+                    "false"
+                ]
+            },
+            "PublishToCloudWatchLogs": {
+                "Type": "String",
+                "Default": "false",
+                "Description": "Indicates whether notifications are published to CloudWatch Logs.",
+                "AllowedValues": [
+                    "true",
+                    "false"
+                ]
+            },
+            "CloudWatchLogsGroupName": {
+                "Type": "String",
+                "Default": "CloudTrail/Landing-Zone-Logs",
+                "Description": "CloudWatchLogs Group name."
+            },
+            "TrailBucket": {
+                "Type": "String",
+                "Description": "Bucket name for logs."
+            },
+            "LogsRetentionInDays": {
+                "Description": "Specifies the number of days you want to retain CloudTrail log events in the CloudWatch Logs.",
+                "Type": "Number",
+                "Default": 14,
+                "AllowedValues": [
+                    1,
+                    3,
+                    5,
+                    7,
+                    14,
+                    30,
+                    60,
+                    90,
+                    120,
+                    150,
+                    180,
+                    365,
+                    400,
+                    545,
+                    731,
+                    1827,
+                    3653
+                ]
+            }
+        },
+
+        "Conditions": {
+            "IsMultiRegion": {
+                "Fn::Equals": [
+                    {
+                        "Ref": "MultiRegion"
+                    },
+                    "true"
+                ]
+            },
+            "IsPublishToCloudWatchLogs": {
+                "Fn::Equals": [
+                    {
+                        "Ref": "PublishToCloudWatchLogs"
+                    },
+                    "true"
+                ]
+            }
+        },
+
+        "Resources": {
+            "Trail": {
+                "Type": "AWS::CloudTrail::Trail",
+                "Properties": {
+                    "S3BucketName": {
+                        "Ref": "TrailBucket"
+                    },
+                    "IsLogging": true,
+                    "EnableLogFileValidation": {
+                        "Ref": "EnableLogFileValidation"
+                    },
+                    "IncludeGlobalServiceEvents": {
+                        "Fn::If": [
+                            "IsMultiRegion",
+                            true,
+                            {
+                                "Ref": "IncludeGlobalEvents"
+                            }
+                        ]
+                    },
+                    "IsMultiRegionTrail": {
+                        "Ref": "MultiRegion"
+                    },
+                    "CloudWatchLogsLogGroupArn": {
+                        "Fn::If": [
+                            "IsPublishToCloudWatchLogs",
+                            {
+                                "Fn::GetAtt": [
+                                    "TrailLogGroup",
+                                    "Arn"
+                                ]
+                            },
+                            {
+                                "Ref": "AWS::NoValue"
+                            }
+                        ]
+                    },
+                    "CloudWatchLogsRoleArn": {
+                        "Fn::If": [
+                            "IsPublishToCloudWatchLogs",
+                            {
+                                "Fn::GetAtt": [
+                                    "TrailLogGroupRole",
+                                    "Arn"
+                                ]
+                            },
+                            {
+                                "Ref": "AWS::NoValue"
+                            }
+                        ]
+                    }
+                }
+            },
+            "TrailLogGroup": {
+                "Type": "AWS::Logs::LogGroup",
+                "Condition": "IsPublishToCloudWatchLogs",
+                "Properties": {
+                    "LogGroupName": {
+                        "Ref": "CloudWatchLogsGroupName"
+                    },
+                    "RetentionInDays": {
+                        "Ref": "LogsRetentionInDays"
+                    }
+                }
+            },
+            "TrailLogGroupRole": {
+                "Type": "AWS::IAM::Role",
+                "Condition": "IsPublishToCloudWatchLogs",
+                "Properties": {
+                    "AssumeRolePolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Sid": "CloudTrailAssumeRole",
+                                "Effect": "Allow",
+                                "Principal": {
+                                    "Service": "cloudtrail.amazonaws.com"
+                                },
+                                "Action": "sts:AssumeRole"
+                            }
+                        ]
+                    },
+                    "Policies": [
+                        {
+                            "PolicyName": "cloudtrail-policy",
+                            "PolicyDocument": {
+                                "Version": "2012-10-17",
+                                "Statement": [
+                                    {
+                                        "Sid": "AWSCloudTrailCreateLogStream",
+                                        "Effect": "Allow",
+                                        "Action": "logs:CreateLogStream",
+                                        "Resource": {
+                                            "Fn::GetAtt": [
+                                                "TrailLogGroup",
+                                                "Arn"
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "Sid": "AWSCloudTrailPutLogEvents",
+                                        "Effect": "Allow",
+                                        "Action": "logs:PutLogEvents",
+                                        "Resource": {
+                                            "Fn::GetAtt": [
+                                                "TrailLogGroup",
+                                                "Arn"
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }}
+  enablesecurityhub:
+    Type: 'AWS::CloudFormation::StackSet'
+    DeletionPolicy: Retain
+    Properties:
+      StackSetName: landing-zone-securityhub
+      Description: Enables Security Hub
+      PermissionModel: SERVICE_MANAGED
+      AutoDeployment:
+        Enabled: !Ref AutoDeploymentEnable
+        RetainStacksOnAccountRemoval: !Ref RetainStacksetOnRemoval
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: NONE
+            OrganizationalUnitIds:
+              - !Ref OUsId
+          Regions:
+            - !Ref Region
+      ManagedExecution:
+        Active: true
+      TemplateBody: |
+        {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Description": "creates Security hub.",
+            "Resources": {
+                "SecurityHub": {
+                    "Type": "AWS::SecurityHub::Hub",
+                    "Properties": {
+                        "Tags": {
+                            "key1": "securityhub",
+                            "key2": "true"
+                                }
+                                    }
+                        }
+                    }}
+  createsecurityrole:
+    Type: 'AWS::CloudFormation::StackSet'
+    DeletionPolicy: Retain
+    Properties:
+      StackSetName: landing-zone-securityrole
+      Description: creates security role
+      PermissionModel: SERVICE_MANAGED
+      Capabilities:
+        - CAPABILITY_IAM
+        - CAPABILITY_NAMED_IAM
+      AutoDeployment:
+        Enabled: !Ref AutoDeploymentEnable
+        RetainStacksOnAccountRemoval: !Ref RetainStacksetOnRemoval
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: NONE
+            OrganizationalUnitIds:
+              - !Ref OUsId
+          Regions:
+            - !Ref Region
+      ManagedExecution:
+        Active: true
+      Parameters:
+        - ParameterKey: SecurityAccountReadOnlyRoleArn
+          ParameterValue: '{{resolve:ssm:ReadOnlyArn:1}}'
+        - ParameterKey: SecurityAccountAdminRoleArn
+          ParameterValue: '{{resolve:ssm:AdminRoleArn:1}}'
+      TemplateBody: |
+        {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Description": "Configure the AWSLandingZoneAdminExecutionRole to enable read only access the target account.",
+            "Parameters": {
+                "SecurityAccountAdminRoleArn": {
+                    "Type": "String",
+                    "Description": "Admin role ARN from the security account."
+                },
+                "SecurityAccountReadOnlyRoleArn": {
+                    "Type": "String",
+                    "Description": "Admin role ARN from the security account."
+                },
+                "AdminRoleName": {
+                    "Type": "String",
+                    "Description": "Role name for administrator access.",
+                    "Default": "AWSLandingZoneAdminExecutionRole"
+                },
+                "ReadOnlyRoleName": {
+                    "Type": "String",
+                    "Description": "Role name for read-only access.",
+                    "Default": "AWSLandingZoneReadOnlyExecutionRole"
+                },
+                "EnableAdminRole": {
+                    "Type": "String",
+                    "Default": "true",
+                    "Description": "Create an administrative cross-account role from SecurityAccountId to this account.",
+                    "AllowedValues": [
+                        "true",
+                        "false"
+                    ]
+                },
+                "EnableReadOnlyRole": {
+                    "Type": "String",
+                    "Default": "true",
+                    "Description": "Create a read-only cross-account role from SecurityAccountId to this account.",
+                    "AllowedValues": [
+                        "true",
+                        "false"
+                    ]
+                }
+            },
+            "Conditions": {
+                "CreateAdminRole": {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "EnableAdminRole"
+                        },
+                        "true"
+                    ]
+                },
+                "CreateReadOnlyRole": {
+                    "Fn::Equals": [
+                        {
+                            "Ref": "EnableReadOnlyRole"
+                        },
+                        "true"
+                    ]
+                }
+            },
+            "Resources": {
+                "AdminExecutionRole": {
+                    "Type": "AWS::IAM::Role",
+                    "Condition": "CreateAdminRole",
+                    "Properties": {
+                        "RoleName": {
+                            "Ref": "AdminRoleName"
+                        },
+                        "AssumeRolePolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Principal": {
+                                        "AWS": [
+                                            {
+                                                "Ref": "SecurityAccountAdminRoleArn"
+                                            }
+                                        ]
+                                    },
+                                    "Action": [
+                                        "sts:AssumeRole"
+                                    ]
+                                }
+                            ]
+                        },
+                        "Path": "/",
+                        "ManagedPolicyArns": [
+                            "arn:aws:iam::aws:policy/AdministratorAccess"
+                        ]
+                    }
+                },
+                "ReadOnlyExecutionRole": {
+                    "Type": "AWS::IAM::Role",
+                    "Condition": "CreateReadOnlyRole",
+                    "Properties": {
+                        "RoleName": {
+                            "Ref": "ReadOnlyRoleName"
+                        },
+                        "AssumeRolePolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Principal": {
+                                        "AWS": [
+                                            {
+                                                "Ref": "SecurityAccountReadOnlyRoleArn"
+                                            }
+                                        ]
+                                    },
+                                    "Action": [
+                                        "sts:AssumeRole"
+                                    ]
+                                }
+                            ]
+                        },
+                        "Path": "/",
+                        "ManagedPolicyArns": [
+                            "arn:aws:iam::aws:policy/ReadOnlyAccess"
+                        ]
+                    }
+                }
+            }}
+Rules: {}

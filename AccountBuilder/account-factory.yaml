@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Account Builder Template for security.
+Parameters:
+  accountemail:
+    Description: "Account Email address"
+    Type: String
+    AllowedPattern: ".+"
+    ConstraintDescription: "Must provide a valid email address"
+
+  accountname:
+    Description: "Name of the new AWS Account Name"
+    Type: String
+    AllowedPattern: ".+"
+    ConstraintDescription: "Provide the account name"
+    
+
+  organizationunitname:
+    Description: "Name of the organization unit to which the account should be moved to."
+    Type: String
+    Default: "None"
+    AllowedPattern: ".+"
+
+
+  sourcebucket:
+    Description: "Bucket holding the baseline template file"
+    Type: String
+    AllowedPattern: ".+"
+
+Resources:
+  AccountBuilderLambda:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Handler: "AccountCreationLambda.main"
+      Runtime: "python3.6"
+      Role: !GetAtt LambdaExecuteRole.Arn
+      Timeout: 600
+      TracingConfig:
+        Mode: "Active"
+      Code:
+        S3Bucket: !Ref sourcebucket
+        S3Key: "AccountCreationLambda.zip"
+      Environment:
+        Variables:
+          "accountemail": !Ref accountemail
+          "accountname": !Ref accountname
+          "organizationunitname": !Ref "organizationunitname"
+  LambdaExecuteRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Effect: "Allow"
+          Principal:
+            Service:
+              - "lambda.amazonaws.com"
+          Action:
+            - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: LambdaAccessRole
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              Effect: Allow
+              Action: "*"
+              Resource: "*"
+
+  TriggerLambda:
+    Type: "Custom::TriggerLambda"
+    DeletionPolicy: Retain
+    DependsOn:
+      - AccountBuilderLambda
+      - LambdaExecuteRole
+    Properties:
+      ServiceToken: !GetAtt AccountBuilderLambda.Arn
+
+Outputs:
+  Message:
+    Description: Execution Status
+    Value: !GetAtt "TriggerLambda.Message"
+
+  AccountID:
+    Description: ID of the new account
+    Value: !GetAtt "TriggerLambda.AccountID"

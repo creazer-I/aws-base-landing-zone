@@ -1,0 +1,93 @@
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Baseline IAM resources for new account
+
+Parameters:
+  s3BucketName:
+    Type: String
+    Description: Bucket Name for cloudtrail
+
+  s3loggingBucketName:
+    Type: String
+    Description: Logging Bucket name
+    
+  NewRoleArn:
+    Type: String
+    Description: ARN of the NewRole
+  SSEAlgorithm:
+    Type: 'String'
+    Default: 'AES256'
+    Description: S3 bucket SSE Algorithm.
+    AllowedValues:
+    - 'AES256'
+
+Resources:
+
+
+  # Create buckets using S3-SSE keys for default encryption
+  S3LoggingBucket:
+    DeletionPolicy: Retain
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref s3loggingBucketName
+      AccessControl: LogDeliveryWrite
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: !Ref SSEAlgorithm
+  S3Bucket:
+    DeletionPolicy: Retain
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref s3BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref S3LoggingBucket
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: !Ref SSEAlgorithm
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AWSBucketPermissionsCheck
+            Effect: Allow
+            Principal:
+              Service:
+                - cloudtrail.amazonaws.com
+                - config.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource:
+              - !Sub "arn:aws:s3:::${S3Bucket}"
+          - Sid: AWSBucketDelivery
+            Effect: Allow
+            Principal:
+              Service:
+                - cloudtrail.amazonaws.com
+                - config.amazonaws.com
+            Action: s3:PutObject
+            Resource:
+                    - Fn::Join:
+                        - ""
+                        -
+                          - "arn:aws:s3:::"
+                          - !Ref "S3Bucket"
+                          - "/AWSLogs/*/*"
+
+Outputs:
+  BucketName:
+    Description: AWS Landing Zone logging bucket name
+    Value: !Ref S3Bucket
+  LoggingBucketName:
+    Description: AWS Landing Zone s3 access logs bucket name
+    Value:  !Ref S3LoggingBucket
+  Role:
+    Description: Role Arn
+    Value: !Ref NewRoleArn
