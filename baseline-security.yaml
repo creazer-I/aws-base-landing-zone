@@ -114,12 +114,6 @@ Resources:
               Effect: Allow
               Action: "*"
               Resource: "*"
-  SecurityHub:
-    Type: AWS::SecurityHub::Hub
-    Properties: 
-      Tags: 
-        key1: landingzone
-        key2: true
 Outputs:
   CrossAccountAdminRole:
     Description: AWS Landing Zone Security Administrator Role

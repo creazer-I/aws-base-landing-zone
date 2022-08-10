@@ -227,6 +227,7 @@ Metadata:
 Resources:
   bucketParameterA:
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Name: S3CloudtrailBucketName
       Type: String
@@ -234,6 +235,7 @@ Resources:
       Description: s3 bucket Name for cloudtrail logs.
   bucketParameterB:
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Name: S3ConfigBucketName
       Type: String
@@ -241,6 +243,7 @@ Resources:
       Description: s3 bucket Name for config logs.
   AccountIdParameterLog:
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Name: LogAccountId
       Type: String
@@ -248,6 +251,7 @@ Resources:
       Description: Log Account ID.
   AccountEmailParameterLog:
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Name: LogAccountEmail
       Type: String
@@ -255,6 +259,7 @@ Resources:
       Description: Log Account Email.
   loggingbucketParameter:
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Name: s3loggingbucketname
       Type: String
@@ -320,6 +325,7 @@ Resources:
   ### Security
   AccountIdParameterSecurity:
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Name: SecurityAccountId
       Type: String
@@ -328,6 +334,7 @@ Resources:
   
   AccountEmailParameterSecurity:
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Name: SecurityAccountEmail
       Type: String
@@ -336,6 +343,7 @@ Resources:
   
   adminroleParameter:
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Name: AdminRoleArn
       Type: String
@@ -344,6 +352,7 @@ Resources:
       
   readonlyroleParameter:
     Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
     Properties:
       Name: ReadOnlyArn
       Type: String
