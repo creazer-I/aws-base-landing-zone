@@ -15,6 +15,67 @@ Parameters:
     Description: 'Region to Deploy Account Baseline '
     Default: ap-southeast-1
 Resources:
+  AggregatorStackset:
+     Type: 'AWS::CloudFormation::StackSet'
+     DeletionPolicy: Retain
+     DependsOn:
+      - enableconfig
+     Properties:
+      StackSetName: !Sub config-logaccount-aggregator
+      Description: Adds Account Id to the security Account
+      PermissionModel: SERVICE_MANAGED
+      AutoDeployment:
+        Enabled: true
+        RetainStacksOnAccountRemoval: true
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: NONE
+            Accounts :
+              - '{{resolve:ssm:SecurityAccountId:1}}'
+          Regions:
+            - !Ref Region
+      ManagedExecution:
+        Active: true
+      Parameters:
+        - ParameterKey: accountId
+          ParameterValue: '{{resolve:ssm:LogAccountId:1}}'
+        - ParameterKey: email
+          ParameterValue: '{{resolve:ssm:LogAccountEmail:1}}'
+      TemplateBody: |
+        {
+          "AWSTemplateFormatVersion": "2010-09-09",
+          "Description": "Add Account Id to GuardDuty,Security Hub and Config Aggregator",
+          "Parameters": {
+              "accountId": {
+                  "Type": "String",
+                  "Description": "Enter Account Id"
+              },
+              "email": {
+                  "Type": "String",
+                  "Description": "Enter Email"
+              }
+          },
+          "Resources": {
+              "ConfigurationAggregator": {
+                  "Type": "AWS::Config::ConfigurationAggregator",
+                  "Properties": {
+                      "AccountAggregationSources": [
+                          {
+                              "AccountIds": [
+                                  {
+                                      "Ref": "accountId"
+                                  }
+                              ],
+                              "AllAwsRegions": true
+                          }
+                      ],
+                      "ConfigurationAggregatorName": "LandingZoneAgrregator"
+                  }
+              }
+                 
+        }
+          }
+  
   configrole:
     Type: 'AWS::CloudFormation::StackSet'
     DeletionPolicy: Retain
@@ -115,7 +176,7 @@ Resources:
         Active: true
       Parameters:
         - ParameterKey: BucketName
-          ParameterValue: '{{resolve:ssm:s3bucketname:1}}'
+          ParameterValue: '{{resolve:ssm:S3ConfigBucketName:1}}'
       TemplateBody: |
         {
          "AWSTemplateFormatVersion": "2010-09-09",
@@ -723,7 +784,7 @@ Resources:
         Active: true
       Parameters:
         - ParameterKey: TrailBucket
-          ParameterValue: '{{resolve:ssm:s3bucketname:1}}'
+          ParameterValue: '{{resolve:ssm:S3CloudtrailBucketName:1}}'
       TemplateBody: >
         {
 
@@ -941,40 +1002,6 @@ Resources:
                 }
             }
         }}
-  enablesecurityhub:
-    Type: 'AWS::CloudFormation::StackSet'
-    DeletionPolicy: Retain
-    Properties:
-      StackSetName: landing-zone-securityhub
-      Description: Enables Security Hub
-      PermissionModel: SERVICE_MANAGED
-      AutoDeployment:
-        Enabled: !Ref AutoDeploymentEnable
-        RetainStacksOnAccountRemoval: !Ref RetainStacksetOnRemoval
-      StackInstancesGroup:
-        - DeploymentTargets:
-            AccountFilterType: NONE
-            OrganizationalUnitIds:
-              - !Ref OUsId
-          Regions:
-            - !Ref Region
-      ManagedExecution:
-        Active: true
-      TemplateBody: |
-        {
-            "AWSTemplateFormatVersion": "2010-09-09",
-            "Description": "creates Security hub.",
-            "Resources": {
-                "SecurityHub": {
-                    "Type": "AWS::SecurityHub::Hub",
-                    "Properties": {
-                        "Tags": {
-                            "key1": "securityhub",
-                            "key2": "true"
-                                }
-                                    }
-                        }
-                    }}
   createsecurityrole:
     Type: 'AWS::CloudFormation::StackSet'
     DeletionPolicy: Retain

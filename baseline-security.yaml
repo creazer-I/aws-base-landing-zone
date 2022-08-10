@@ -11,6 +11,10 @@ Parameters:
     Type: String
     Description: Role name for read-only access.
     Default: AWSLandingZoneSecurityReadOnlyRole
+  LogAccountId:
+    Type: String
+  LogAccountEmail:
+    Type: String
 Resources:
   AdministrationRole:
     Type: 'AWS::IAM::Role'
@@ -62,6 +66,22 @@ Resources:
     Type: 'AWS::GuardDuty::Detector'
     Properties:
       Enable: true
+  GDMasterMember:
+    Type: 'AWS::GuardDuty::Member'
+    Properties:
+      Status: Invited
+      MemberId: !Ref LogAccountId
+      Email: !Ref LogAccountEmail
+      Message: You are invited to enable Amazon Guardduty.
+      DetectorId: !Ref MasterDetector
+      DisableEmailNotification: true
+  DectectorIdssm:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: GuardDutyMasterDetectorId
+      Type: String
+      Value: !Ref MasterDetector
+      Description: Master Detector Id
   GuardDutyFindingEventRule:
     Type: 'AWS::Events::Rule'
     Properties:
@@ -73,6 +93,33 @@ Resources:
         detail-type:
           - GuardDuty Finding
       State: ENABLED
+  LambdaExecuteRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Effect: "Allow"
+          Principal:
+            Service:
+              - "lambda.amazonaws.com"
+          Action:
+            - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: LambdaAccessRole
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              Effect: Allow
+              Action: "*"
+              Resource: "*"
+  SecurityHub:
+    Type: AWS::SecurityHub::Hub
+    Properties: 
+      Tags: 
+        key1: landingzone
+        key2: true
 Outputs:
   CrossAccountAdminRole:
     Description: AWS Landing Zone Security Administrator Role
@@ -84,6 +131,12 @@ Outputs:
     Value: !GetAtt ReadOnlyRole.Arn
     Export:
       Name: ReadOnlyRoleArn
+  LambdaRoleArn:
+    Description: Lambda Role for lambda function
+    Value: !GetAtt LambdaExecuteRole.Arn
+    Export:
+      Name: LambdaExecuteRole
+
   MasterDetectorId:
     Description: GuardDuty DetectorId for this region
     Value: !Ref MasterDetector
