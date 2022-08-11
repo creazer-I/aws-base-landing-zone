@@ -339,7 +339,7 @@ Resources:
     Properties:
       Name: SecurityAccountId
       Type: String
-      Value: !GetAtt TriggerLambda.AccountID
+      Value: !GetAtt SecurityTriggerLambda.AccountID
       Description: Security Account ID. 
   
   AccountEmailParameterSecurity:
@@ -357,7 +357,7 @@ Resources:
     Properties:
       Name: AdminRoleArn
       Type: String
-      Value: !Sub 'arn:aws:iam::${TriggerLambda.AccountID}:role/AWSLandingZoneSecurityAdministratorRole'
+      Value: !Sub 'arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityAdministratorRole'
       Description: admin role arn from security account.
       
   readonlyroleParameter:
@@ -366,7 +366,7 @@ Resources:
     Properties:
       Name: ReadOnlyArn
       Type: String
-      Value: !Sub 'arn:aws:iam::${TriggerLambda.AccountID}:role/AWSLandingZoneSecurityReadOnlyRole'
+      Value: !Sub 'arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityReadOnlyRole'
       Description: read only role arn from security account.
       
 
