@@ -19,7 +19,10 @@ Parameters:
     Type: String
     Default: "None"
     AllowedPattern: ".+"
-
+  
+  OrganizationUnitId:
+    Description: "Enter Organization unit ID where log and security account exist"
+    Type: String
 
   sourcebucket:
     Description: "Bucket holding the baseline template file"
@@ -51,7 +54,9 @@ Resources:
         RetainStacksOnAccountRemoval: true
       StackInstancesGroup:
         - DeploymentTargets:
-            AccountFilterType: NONE
+            AccountFilterType: INTERSECTION
+            OrganizationalUnitIds:
+              - !Ref OrganizationUnitId
             Accounts :
               - '{{resolve:ssm:SecurityAccountId:1}}'
           Regions:
