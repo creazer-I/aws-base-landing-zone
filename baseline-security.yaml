@@ -179,3 +179,5 @@ Outputs:
   MasterDetectorId:
     Description: GuardDuty DetectorId for this region
     Value: !Ref MasterDetector
+    Export:
+      Name: GuardDutyMasterDetectorId

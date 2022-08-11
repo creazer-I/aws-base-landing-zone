@@ -110,7 +110,7 @@ Resources:
                           "Ref": "email"
                       },
                       "Message": "You are invited to enable Amazon Guardduty.",
-                      "DetectorId": "{{resolve:ssm:GuardDutyMasterDetectorId:1}}",
+                      "DetectorId": "Fn::ImportValue": "GuardDutyMasterDetectorId",
                       "DisableEmailNotification": true
                   }
               },
