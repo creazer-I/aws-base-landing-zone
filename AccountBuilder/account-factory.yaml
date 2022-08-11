@@ -156,7 +156,7 @@ Resources:
     Type: "AWS::Lambda::Function"
     Properties:
       Handler: "AccountCreationLambda.main"
-      Runtime: "python3.6"
+      Runtime: "python3.9"
       Role: !GetAtt LambdaExecuteRole.Arn
       Timeout: 600
       TracingConfig:
