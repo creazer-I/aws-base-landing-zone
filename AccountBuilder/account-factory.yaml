@@ -117,7 +117,7 @@ Resources:
               "SecurityHubMember": {
                   "Type": "AWS::Lambda::Function",
                   "Properties": {
-                      "Handler": "SecurityHubMember.main",
+                      "Handler": "index.main",
                       "Runtime": "python3.8",
                       "Role": {
                           "Fn::ImportValue": "LambdaExecuteRole"
@@ -140,23 +140,44 @@ Resources:
                           }
                       }
                   }
-              },
-               "SecurityHubTriggerLambda": {
-            "Type": "Custom::TriggerLambda",
-            "DeletionPolicy": "Retain",
-            "DependsOn": [
-              "SecurityHubMember"
-            ],
-            "Properties": {
-                "ServiceToken": {
-                    "Fn::GetAtt": [
-                        "SecurityHubMember",
-                        "Arn"
-                    ]
-                }
-            }
-        }
+              }
           }}
+  enablesecurityhub:
+    Type: 'AWS::CloudFormation::StackSet'
+    DeletionPolicy: Retain
+    Properties:
+      StackSetName: landing-zone-securityhub
+      Description: Enables Security Hub
+      PermissionModel: SERVICE_MANAGED
+      AutoDeployment:
+        Enabled: true
+        RetainStacksOnAccountRemoval: true
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: INTERSECTION
+            OrganizationalUnitIds:
+              - !Ref OrganizationUnitId
+            Accounts :
+              - !GetAtt "TriggerLambda.AccountID"
+          Regions:
+            - !Ref Region
+      ManagedExecution:
+        Active: true
+      TemplateBody: |
+        {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Description": "creates Security hub.",
+            "Resources": {
+                "SecurityHub": {
+                    "Type": "AWS::SecurityHub::Hub",
+                    "Properties": {
+                        "Tags": {
+                            "key1": "landingzone",
+                            "key2": "true"
+                                }
+                                    }
+                        }
+                    }}
   LambdaLayer:
     Type: AWS::Lambda::LayerVersion
     Properties: 

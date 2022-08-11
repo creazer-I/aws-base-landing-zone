@@ -158,15 +158,6 @@ Resources:
         Variables:
           Email: !Ref LogAccountEmail
           AccountId: !Ref LogAccountId
-  SecurityHubTriggerLambda:
-    Type: 'Custom::TriggerLambda'
-    DeletionPolicy: Retain
-    DependsOn:
-      - SecurityHubMember
-    Properties:
-      ServiceToken: !GetAtt 
-        - SecurityHubMember
-        - Arn
 Outputs:
   CrossAccountAdminRole:
     Description: AWS Landing Zone Security Administrator Role
