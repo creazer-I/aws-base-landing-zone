@@ -265,11 +265,21 @@ Resources:
       Type: String
       Value: !Ref s3loggingBucketName
       Description: s3 bucket Name for cloudwatch log.
+  LambdaLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties: 
+      Content:
+        S3Bucket: !Ref sourcebucket
+        S3Key: requests.zip
+      Description: Installs requests module
+
   AccountBuilderLambda:
     Type: 'AWS::Lambda::Function'
     Properties:
       Handler: AccountCreationLambda.main
       Runtime: python3.9
+      Layers: 
+        - !Ref LambdaLayer
       Role: !GetAtt LambdaExecuteRole.Arn
       Timeout: 600
       TracingConfig:
@@ -365,6 +375,8 @@ Resources:
     Properties:
       Handler: "AccountCreationLambda.main"
       Runtime: "python3.9"
+      Layers: 
+        - !Ref LambdaLayer
       Role: !GetAtt LambdaExecuteRole.Arn
       Timeout: 600
       TracingConfig:
