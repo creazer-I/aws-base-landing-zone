@@ -29,7 +29,9 @@ Resources:
         RetainStacksOnAccountRemoval: true
       StackInstancesGroup:
         - DeploymentTargets:
-            AccountFilterType: NONE
+            AccountFilterType: INTERSECTION
+            OrganizationalUnitIds:
+              - !Ref OUsId
             Accounts :
               - '{{resolve:ssm:SecurityAccountId:1}}'
           Regions:
