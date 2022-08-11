@@ -114,6 +114,59 @@ Resources:
               Effect: Allow
               Action: "*"
               Resource: "*"
+  SecurityHub:
+    Type: 'AWS::SecurityHub::Hub'
+    Properties:
+      Tags:
+        key1: landingzone
+        key2: true
+  SecurityHubMember:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: SecurityHubMember.main
+      Runtime: python3.8
+      Role: !ImportValue LambdaExecuteRole
+      Timeout: 600
+      TracingConfig:
+        Mode: Active
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+
+
+          def main(event, context):
+            AccountId = os.environ['AccountId']
+            Email = os.environ['Email'] 
+            
+            member = addmember(AccountId,Email)
+            
+            
+          def addmember(AccountId,Email):    
+            client = boto3.client('securityhub')
+              
+            response = client.create_members(
+                  AccountDetails=[
+                      {
+                          'AccountId': AccountId,
+                          'Email': Email
+                      },
+                  ]
+              )
+      Environment:
+        Variables:
+          Email: !Ref LogAccountEmail
+          AccountId: !Ref LogAccountId
+  SecurityHubTriggerLambda:
+    Type: 'Custom::TriggerLambda'
+    DeletionPolicy: Retain
+    DependsOn:
+      - SecurityHubMember
+    Properties:
+      ServiceToken: !GetAtt 
+        - SecurityHubMember
+        - Arn
 Outputs:
   CrossAccountAdminRole:
     Description: AWS Landing Zone Security Administrator Role
@@ -130,7 +183,8 @@ Outputs:
     Value: !GetAtt LambdaExecuteRole.Arn
     Export:
       Name: LambdaExecuteRole
-
+  SecurityHubArn:
+    Value: !Ref SecurityHub
   MasterDetectorId:
     Description: GuardDuty DetectorId for this region
     Value: !Ref MasterDetector
