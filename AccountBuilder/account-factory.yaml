@@ -146,7 +146,7 @@ Resources:
     Type: 'AWS::CloudFormation::StackSet'
     DeletionPolicy: Retain
     Properties:
-      StackSetName: landing-zone-securityhub
+      StackSetName: !Sub security-hub-enable-${accountname}
       Description: Enables Security Hub
       PermissionModel: SERVICE_MANAGED
       AutoDeployment:
