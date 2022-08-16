@@ -19,19 +19,178 @@ Parameters:
     Type: String
     Default: "None"
     AllowedPattern: ".+"
-
+  
+  OrganizationUnitId:
+    Description: "Enter Organization unit ID where log and security account exist"
+    Type: String
 
   sourcebucket:
     Description: "Bucket holding the baseline template file"
     Type: String
     AllowedPattern: ".+"
 
+  Region:
+    Type: String
+    Description: 'Security Agrregator Stackset Region'
+    Default: ap-southeast-1
+
 Resources:
+  AccountIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '${accountname}AccountId'
+      Type: String
+      Value: !GetAtt TriggerLambda.AccountID
+      Description:  !Sub '${accountname} Account ID'
+  AggregatorStackset:
+    Type: 'AWS::CloudFormation::StackSet'
+    DeletionPolicy: Retain
+    Properties:
+      StackSetName: !Sub security-aggregator-${accountname}
+      Description: Adds Account Id to the security Account
+      PermissionModel: SERVICE_MANAGED
+      AutoDeployment:
+        Enabled: true
+        RetainStacksOnAccountRemoval: true
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: INTERSECTION
+            OrganizationalUnitIds:
+              - !Ref OrganizationUnitId
+            Accounts :
+              - '{{resolve:ssm:SecurityAccountId:1}}'
+          Regions:
+            - !Ref Region
+      ManagedExecution:
+        Active: true
+      Parameters:
+        - ParameterKey: accountId
+          ParameterValue: !GetAtt "TriggerLambda.AccountID"
+        - ParameterKey: email
+          ParameterValue: !Ref accountemail
+      TemplateBody: |
+        {
+          "AWSTemplateFormatVersion": "2010-09-09",
+          "Description": "Add Account Id to GuardDuty,Security Hub and Config Aggregator",
+          "Parameters": {
+              "accountId": {
+                  "Type": "String",
+                  "Description": "Enter Account Id"
+              },
+              "email": {
+                  "Type": "String",
+                  "Description": "Enter Email"
+              }
+          },
+          "Resources": {
+              "ConfigurationAggregator": {
+                  "Type": "AWS::Config::ConfigurationAggregator",
+                  "Properties": {
+                      "AccountAggregationSources": [
+                          {
+                              "AccountIds": [
+                                  {
+                                      "Ref": "accountId"
+                                  }
+                              ],
+                              "AllAwsRegions": true
+                          }
+                      ]
+                  }
+              },
+              "GDMasterMember": {
+                  "Type": "AWS::GuardDuty::Member",
+                  "Properties": {
+                      "Status": "Invited",
+                      "MemberId": {
+                          "Ref": "accountId"
+                      },
+                      "Email": {
+                          "Ref": "email"
+                      },
+                      "Message": "You are invited to enable Amazon Guardduty.",
+                      "DetectorId": {"Fn::ImportValue": "GuardDutyMasterDetectorId"},
+                      "DisableEmailNotification": true
+                  }
+              },
+              "SecurityHubMember": {
+                  "Type": "AWS::Lambda::Function",
+                  "Properties": {
+                      "Handler": "index.main",
+                      "Runtime": "python3.8",
+                      "Role": {
+                          "Fn::ImportValue": "LambdaExecuteRole"
+                      },
+                      "Timeout": 600,
+                      "TracingConfig": {
+                          "Mode": "Active"
+                      },
+                      "Code": {
+                          "ZipFile": "import json\nimport boto3\nimport os\n\n\ndef main(event, context):\n  AccountId = os.environ['AccountId']\n  Email = os.environ['Email'] \n  \n  member = addmember(AccountId,Email)\n  \n  \ndef addmember(AccountId,Email):    \n  client = boto3.client('securityhub')\n    \n  response = client.create_members(\n        AccountDetails=[\n            {\n                'AccountId': AccountId,\n                'Email': Email\n            },\n        ]\n    )\n"
+                      },
+                      "Environment": {
+                          "Variables": {
+                              "Email": {
+                                  "Ref": "email"
+                              },
+                              "AccountId": {
+                                  "Ref": "accountId"
+                              }
+                          }
+                      }
+                  }
+              }
+          }}
+  enablesecurityhub:
+    Type: 'AWS::CloudFormation::StackSet'
+    DeletionPolicy: Retain
+    Properties:
+      StackSetName: !Sub security-hub-enable-${accountname}
+      Description: Enables Security Hub
+      PermissionModel: SERVICE_MANAGED
+      AutoDeployment:
+        Enabled: true
+        RetainStacksOnAccountRemoval: true
+      StackInstancesGroup:
+        - DeploymentTargets:
+            AccountFilterType: INTERSECTION
+            OrganizationalUnitIds:
+              - !Ref OrganizationUnitId
+            Accounts :
+              - !GetAtt "TriggerLambda.AccountID"
+          Regions:
+            - !Ref Region
+      ManagedExecution:
+        Active: true
+      TemplateBody: |
+        {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Description": "creates Security hub.",
+            "Resources": {
+                "SecurityHub": {
+                    "Type": "AWS::SecurityHub::Hub",
+                    "Properties": {
+                        "Tags": {
+                            "key1": "landingzone",
+                            "key2": "true"
+                                }
+                                    }
+                        }
+                    }}
+  LambdaLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties: 
+      Content:
+        S3Bucket: !Ref sourcebucket
+        S3Key: requests.zip
+      Description: Installs requests module
   AccountBuilderLambda:
     Type: "AWS::Lambda::Function"
     Properties:
       Handler: "AccountCreationLambda.main"
-      Runtime: "python3.6"
+      Runtime: "python3.9"
+      Layers: 
+        - !Ref LambdaLayer
       Role: !GetAtt LambdaExecuteRole.Arn
       Timeout: 600
       TracingConfig:
@@ -74,6 +233,10 @@ Resources:
       - LambdaExecuteRole
     Properties:
       ServiceToken: !GetAtt AccountBuilderLambda.Arn
+
+  
+  
+
 
 Outputs:
   Message:

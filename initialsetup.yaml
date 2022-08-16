@@ -20,17 +20,9 @@ Parameters:
   Environment:
     Type: String
     Default: dev
-  CloudformationProductUrlSecurity:
+  LogSecurityCfnTemplateUrl:
     Type: String
     Description: Cloudformation template Url for Security Account
-    Default: ''
-  CloudformationProductUrlLog:
-    Type: String
-    Description: Cloudformation template Url for Log Account
-    Default: ''
-  CloudformationProductUrlDev:
-    Type: String
-    Description: Cloudformation template Url for Dev Account
     Default: ''
   AccountFactoryCfnUrl:
     Type: String
@@ -48,49 +40,17 @@ Parameters:
     Description: 'User or Group arn to launch product access '
     Default: ''
 Resources:
-  SecurityAccountProduct:
+  BaseAccountProduct:
     Type: 'AWS::ServiceCatalog::CloudFormationProduct'
     Properties:
-      Description: Security Account Builder
+      Description: Builds Security and Log Account
       Distributor: !Ref DistributorName
-      Name: !Sub '${ProductName}_security'
+      Name: !Sub '${ProductName}_log-security'
       Owner: !Ref OwnerName
       ProvisioningArtifactParameters:
         - DisableTemplateValidation: true
           Info:
-            LoadTemplateFromURL: !Ref CloudformationProductUrlSecurity
-          Name: !Ref ProductVersion
-      SupportEmail: !Ref SupportEmail
-      Tags:
-        - Key: env
-          Value: !Ref Environment
-  LogAccountProduct:
-    Type: 'AWS::ServiceCatalog::CloudFormationProduct'
-    Properties:
-      Description: Log-archive Account Builder
-      Distributor: !Ref DistributorName
-      Name: !Sub '${ProductName}_log-archive'
-      Owner: !Ref OwnerName
-      ProvisioningArtifactParameters:
-        - DisableTemplateValidation: true
-          Info:
-            LoadTemplateFromURL: !Ref CloudformationProductUrlLog
-          Name: !Ref ProductVersion
-      SupportEmail: !Ref SupportEmail
-      Tags:
-        - Key: env
-          Value: !Ref Environment
-  DevAccountProduct:
-    Type: 'AWS::ServiceCatalog::CloudFormationProduct'
-    Properties:
-      Description: Dev Account Builder
-      Distributor: !Ref DistributorName
-      Name: !Sub '${ProductName}_dev'
-      Owner: !Ref OwnerName
-      ProvisioningArtifactParameters:
-        - DisableTemplateValidation: true
-          Info:
-            LoadTemplateFromURL: !Ref CloudformationProductUrlDev
+            LoadTemplateFromURL: !Ref LogSecurityCfnTemplateUrl
           Name: !Ref ProductVersion
       SupportEmail: !Ref SupportEmail
       Tags:
@@ -152,33 +112,13 @@ Resources:
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AdministratorAccess'
       Path: /
-  ServiceCatalogLaunchConstraintSeccurity:
-    Type: 'AWS::ServiceCatalog::LaunchRoleConstraint'
-    Properties:
-      Description: This is a launch constraint created for the account vending portfolio
-      AcceptLanguage: en
-      PortfolioId: !Ref portfolio
-      ProductId: !Ref SecurityAccountProduct
-      RoleArn: !GetAtt 
-        - ServiceCatalogLaunchRole
-        - Arn
   ServiceCatalogLaunchConstraintLog:
     Type: 'AWS::ServiceCatalog::LaunchRoleConstraint'
     Properties:
       Description: This is a launch constraint created for the account vending portfolio
       AcceptLanguage: en
       PortfolioId: !Ref portfolio
-      ProductId: !Ref LogAccountProduct
-      RoleArn: !GetAtt 
-        - ServiceCatalogLaunchRole
-        - Arn
-  ServiceCatalogLaunchConstraintDev:
-    Type: 'AWS::ServiceCatalog::LaunchRoleConstraint'
-    Properties:
-      Description: This is a launch constraint created for the account vending portfolio
-      AcceptLanguage: en
-      PortfolioId: !Ref portfolio
-      ProductId: !Ref DevAccountProduct
+      ProductId: !Ref BaseAccountProduct
       RoleArn: !GetAtt 
         - ServiceCatalogLaunchRole
         - Arn
@@ -208,21 +148,11 @@ Resources:
       PrincipalARN: !Ref UserOrGroupArn
       PortfolioId: !Ref portfolio
       PrincipalType: IAM
-  securityproductAssociation:
+  BaseproductAssociation:
     Type: 'AWS::ServiceCatalog::PortfolioProductAssociation'
     Properties:
       PortfolioId: !Ref portfolio
-      ProductId: !Ref SecurityAccountProduct
-  logproductAssociation:
-    Type: 'AWS::ServiceCatalog::PortfolioProductAssociation'
-    Properties:
-      PortfolioId: !Ref portfolio
-      ProductId: !Ref LogAccountProduct
-  devproductAssociation:
-    Type: 'AWS::ServiceCatalog::PortfolioProductAssociation'
-    Properties:
-      PortfolioId: !Ref portfolio
-      ProductId: !Ref DevAccountProduct
+      ProductId: !Ref BaseAccountProduct
   AccountFactoryproductAssociation:
     Type: 'AWS::ServiceCatalog::PortfolioProductAssociation'
     Properties:
