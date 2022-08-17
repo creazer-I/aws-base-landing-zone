@@ -61,7 +61,7 @@ Resources:
           Regions:
             - !Ref Region
       ManagedExecution:
-        Active: false
+        Active: true
       Parameters:
         - ParameterKey: accountId
           ParameterValue: !GetAtt "TriggerLambda.AccountID"
@@ -176,7 +176,7 @@ Resources:
           Regions:
             - !Ref Region
       ManagedExecution:
-        Active: false
+        Active: true
       TemplateBody: |
         {
             "AWSTemplateFormatVersion": "2010-09-09",
