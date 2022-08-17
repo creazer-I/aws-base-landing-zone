@@ -4,6 +4,12 @@
 Creates a base landing zone with logging account , security account and a dev account
 ###### Accounts are created via Lambda function from cloudformation 
 
+#### Prereq
+
+1. AWS Account with organization enabled
+
+2. and Trusted Access Enabled in AWS Cloudformation Stackset 
+
 #### How to Setup
 
 1. Deploy the initialsetup.yaml in cloudformation, which will create a service catalog.
