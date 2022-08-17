@@ -56,6 +56,8 @@ Resources:
               SSEAlgorithm: !Ref SSEAlgorithm
   S3ConfigBucket:
     DeletionPolicy: Retain
+    DependsOn:
+      - S3CloudtrailBucket
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref s3configbucketName
@@ -70,6 +72,8 @@ Resources:
   
   S3CloudtrailBucketPolicy:
     Type: AWS::S3::BucketPolicy
+    DependsOn:
+      - S3CloudtrailBucket
     Properties:
       Bucket: !Ref s3cloudtrailbucketName
       PolicyDocument:
@@ -98,6 +102,8 @@ Resources:
                           - "/AWSLogs/*/*"
   S3ConfigBucketPolicy:
     Type: AWS::S3::BucketPolicy
+    DependsOn:
+      - S3ConfigBucket
     Properties:
       Bucket: !Ref  s3configbucketName
       PolicyDocument:
