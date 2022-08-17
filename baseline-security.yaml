@@ -134,6 +134,7 @@ Resources:
           import json
           import boto3
           import os
+          import cfnresponse
 
 
           def main(event, context):
@@ -141,6 +142,10 @@ Resources:
             Email = os.environ['Email'] 
             
             member = addmember(AccountId,Email)
+
+            dataResponse = { "Message": "Resource create successful!" }
+  
+            cfnresponse.send(event, context, cfnresponse.SUCCESS, dataResponse)
             
             
           def addmember(AccountId,Email):    
@@ -158,6 +163,14 @@ Resources:
         Variables:
           Email: !Ref LogAccountEmail
           AccountId: !Ref LogAccountId
+  TriggerLambda:
+    Type: "Custom::TriggerLambda"
+    DeletionPolicy: Retain
+    DependsOn:
+      - SecurityHubMember
+      - LambdaExecuteRole
+    Properties:
+      ServiceToken: !GetAtt SecurityHubMember.Arn
 Outputs:
   CrossAccountAdminRole:
     Description: AWS Landing Zone Security Administrator Role

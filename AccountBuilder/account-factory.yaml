@@ -50,8 +50,7 @@ Resources:
       Description: Adds Account Id to the security Account
       PermissionModel: SERVICE_MANAGED
       AutoDeployment:
-        Enabled: true
-        RetainStacksOnAccountRemoval: true
+        Enabled: false
       StackInstancesGroup:
         - DeploymentTargets:
             AccountFilterType: INTERSECTION
@@ -69,88 +68,104 @@ Resources:
         - ParameterKey: email
           ParameterValue: !Ref accountemail
       TemplateBody: |
-        {
-          "AWSTemplateFormatVersion": "2010-09-09",
-          "Description": "Add Account Id to GuardDuty,Security Hub and Config Aggregator",
-          "Parameters": {
-              "accountId": {
-                  "Type": "String",
-                  "Description": "Enter Account Id"
+          {
+              "AWSTemplateFormatVersion": "2010-09-09",
+              "Description": "Add Account Id to GuardDuty,Security Hub and Config Aggregator",
+              "Parameters": {
+                  "accountId": {
+                      "Type": "String",
+                      "Description": "Enter Account Id"
+                  },
+                  "email": {
+                      "Type": "String",
+                      "Description": "Enter Email"
+                  }
               },
-              "email": {
-                  "Type": "String",
-                  "Description": "Enter Email"
-              }
-          },
-          "Resources": {
-              "ConfigurationAggregator": {
-                  "Type": "AWS::Config::ConfigurationAggregator",
-                  "Properties": {
-                      "AccountAggregationSources": [
-                          {
-                              "AccountIds": [
-                                  {
+              "Resources": {
+                  "ConfigurationAggregator": {
+                      "Type": "AWS::Config::ConfigurationAggregator",
+                      "Properties": {
+                          "AccountAggregationSources": [
+                              {
+                                  "AccountIds": [
+                                      {
+                                          "Ref": "accountId"
+                                      }
+                                  ],
+                                  "AllAwsRegions": true
+                              }
+                          ]
+                      }
+                  },
+                  "GDMasterMember": {
+                      "Type": "AWS::GuardDuty::Member",
+                      "Properties": {
+                          "Status": "Invited",
+                          "MemberId": {
+                              "Ref": "accountId"
+                          },
+                          "Email": {
+                              "Ref": "email"
+                          },
+                          "Message": "You are invited to enable Amazon Guardduty.",
+                          "DetectorId": {
+                              "Fn::ImportValue": "GuardDutyMasterDetectorId"
+                          },
+                          "DisableEmailNotification": true
+                      }
+                  },
+                  "SecurityHubMember": {
+                      "Type": "AWS::Lambda::Function",
+                      "Properties": {
+                          "Handler": "index.main",
+                          "Runtime": "python3.8",
+                          "Role": {
+                              "Fn::ImportValue": "LambdaExecuteRole"
+                          },
+                          "Timeout": 600,
+                          "TracingConfig": {
+                              "Mode": "Active"
+                          },
+                          "Code": {
+                              "ZipFile": "import json\nimport boto3\nimport os\nimport cfnresponse\n\n\ndef main(event, context):\n  AccountId = os.environ['AccountId']\n  Email = os.environ['Email'] \n  \n  member = addmember(AccountId,Email)\n  \n  dataResponse = { \"Message\": \"Resource create successful!\" }\n\n  cfnresponse.send(event, context, cfnresponse.SUCCESS, dataResponse)\n  \n  \ndef addmember(AccountId,Email):    \n  client = boto3.client('securityhub')\n    \n  response = client.create_members(\n        AccountDetails=[\n            {\n                'AccountId': AccountId,\n                'Email': Email\n            },\n        ]\n    )\n"
+                          },
+                          "Environment": {
+                              "Variables": {
+                                  "Email": {
+                                      "Ref": "email"
+                                  },
+                                  "AccountId": {
                                       "Ref": "accountId"
                                   }
-                              ],
-                              "AllAwsRegions": true
-                          }
-                      ]
-                  }
-              },
-              "GDMasterMember": {
-                  "Type": "AWS::GuardDuty::Member",
-                  "Properties": {
-                      "Status": "Invited",
-                      "MemberId": {
-                          "Ref": "accountId"
-                      },
-                      "Email": {
-                          "Ref": "email"
-                      },
-                      "Message": "You are invited to enable Amazon Guardduty.",
-                      "DetectorId": {"Fn::ImportValue": "GuardDutyMasterDetectorId"},
-                      "DisableEmailNotification": true
-                  }
-              },
-              "SecurityHubMember": {
-                  "Type": "AWS::Lambda::Function",
-                  "Properties": {
-                      "Handler": "index.main",
-                      "Runtime": "python3.8",
-                      "Role": {
-                          "Fn::ImportValue": "LambdaExecuteRole"
-                      },
-                      "Timeout": 600,
-                      "TracingConfig": {
-                          "Mode": "Active"
-                      },
-                      "Code": {
-                          "ZipFile": "import json\nimport boto3\nimport os\n\n\ndef main(event, context):\n  AccountId = os.environ['AccountId']\n  Email = os.environ['Email'] \n  \n  member = addmember(AccountId,Email)\n  \n  \ndef addmember(AccountId,Email):    \n  client = boto3.client('securityhub')\n    \n  response = client.create_members(\n        AccountDetails=[\n            {\n                'AccountId': AccountId,\n                'Email': Email\n            },\n        ]\n    )\n"
-                      },
-                      "Environment": {
-                          "Variables": {
-                              "Email": {
-                                  "Ref": "email"
-                              },
-                              "AccountId": {
-                                  "Ref": "accountId"
                               }
+                          }
+                      }
+                  },
+                  "TriggerLambdaSecurityHub": {
+                      "Type": "Custom::TriggerLambda",
+                      "DeletionPolicy": "Retain",
+                      "DependsOn": [
+                          "SecurityHubMember"
+                      ],
+                      "Properties": {
+                          "ServiceToken": {
+                              "Fn::GetAtt": [
+                                  "SecurityHubMember",
+                                  "Arn"
+                              ]
                           }
                       }
                   }
               }
-          }}
+          }
   enablesecurityhub:
     Type: 'AWS::CloudFormation::StackSet'
-    DeletionPolicy: Retain
     Properties:
       StackSetName: !Sub security-hub-enable-${accountname}
       Description: Enables Security Hub
       PermissionModel: SERVICE_MANAGED
       AutoDeployment:
-        Enabled: true
-        RetainStacksOnAccountRemoval: true
+        Enabled: false
       StackInstancesGroup:
         - DeploymentTargets:
             AccountFilterType: INTERSECTION
