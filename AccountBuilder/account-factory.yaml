@@ -45,6 +45,8 @@ Resources:
   AggregatorStackset:
     Type: 'AWS::CloudFormation::StackSet'
     DeletionPolicy: Retain
+    DependsOn: 
+     - enablesecurityhub
     Properties:
       StackSetName: !Sub security-aggregator-${accountname}
       Description: Adds Account Id to the security Account
@@ -161,7 +163,6 @@ Resources:
           }
   enablesecurityhub:
     Type: 'AWS::CloudFormation::StackSet'
-    DeletionPolicy: Retain
     Properties:
       StackSetName: !Sub security-hub-enable-${accountname}
       Description: Enables Security Hub
