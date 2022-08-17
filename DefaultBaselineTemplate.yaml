@@ -37,7 +37,7 @@ Resources:
           Regions:
             - !Ref Region
       ManagedExecution:
-        Active: true
+        Active: false
       Parameters:
         - ParameterKey: accountId
           ParameterValue: '{{resolve:ssm:LogAccountId:1}}'
