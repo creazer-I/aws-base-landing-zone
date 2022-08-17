@@ -50,8 +50,7 @@ Resources:
       Description: Adds Account Id to the security Account
       PermissionModel: SERVICE_MANAGED
       AutoDeployment:
-        Enabled: true
-        RetainStacksOnAccountRemoval: true
+        Enabled: false
       StackInstancesGroup:
         - DeploymentTargets:
             AccountFilterType: INTERSECTION
@@ -166,8 +165,7 @@ Resources:
       Description: Enables Security Hub
       PermissionModel: SERVICE_MANAGED
       AutoDeployment:
-        Enabled: true
-        RetainStacksOnAccountRemoval: true
+        Enabled: false
       StackInstancesGroup:
         - DeploymentTargets:
             AccountFilterType: INTERSECTION
