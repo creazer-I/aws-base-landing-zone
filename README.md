@@ -36,4 +36,7 @@ And there is Default Account Baseline which is common for all accounts and it is
 
 Make sure before initial setup upload all the files in your aws s3 bucket in the exact same order. Thank you
 
+
+![Screemshot](landingzone.png)
+
  
