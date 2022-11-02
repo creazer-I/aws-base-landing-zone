@@ -6,7 +6,7 @@ Parameters:
     Description: Enter Organizational Unit Id where the stack set should be deployed
   ClientName:
     Type: String
-    Description: Enter the client name 
+    Description: Enter the same Client Name when log and security account created 
   RetainStacksetOnRemoval:
     Type: String
     Default: 'false'
@@ -35,16 +35,16 @@ Resources:
             OrganizationalUnitIds:
               - !Ref OUsId
             Accounts :
-              - '{{resolve:ssm:SecurityAccountId:1}}'
+              - !Sub '{{resolve:ssm:SecurityAccountId-${ClientName}:1}}'
           Regions:
             - !Ref Region
       ManagedExecution:
         Active: true
       Parameters:
         - ParameterKey: accountId
-          ParameterValue: '{{resolve:ssm:LogAccountId:1}}'
+          ParameterValue: !Sub '{{resolve:ssm:LogAccountId-${ClientName}:1}}'
         - ParameterKey: email
-          ParameterValue: '{{resolve:ssm:LogAccountEmail:1}}'
+          ParameterValue: !Sub '{{resolve:ssm:LogAccountEmail-${ClientName}:1}}'
       TemplateBody: |
         {
           "AWSTemplateFormatVersion": "2010-09-09",
@@ -180,7 +180,7 @@ Resources:
         Active: true
       Parameters:
         - ParameterKey: BucketName
-          ParameterValue: '{{resolve:ssm:S3ConfigBucketName:1}}'
+          ParameterValue: !Sub '{{resolve:ssm:S3ConfigBucketName-${ClientName}:1}}'
       TemplateBody: |
         {
          "AWSTemplateFormatVersion": "2010-09-09",
@@ -788,7 +788,7 @@ Resources:
         Active: true
       Parameters:
         - ParameterKey: TrailBucket
-          ParameterValue: '{{resolve:ssm:S3CloudtrailBucketName:1}}'
+          ParameterValue: !Sub '{{resolve:ssm:S3CloudtrailBucketName-${ClientName}:1}}'
       TemplateBody: >
         {
 
@@ -1030,9 +1030,9 @@ Resources:
         Active: true
       Parameters:
         - ParameterKey: SecurityAccountReadOnlyRoleArn
-          ParameterValue: '{{resolve:ssm:ReadOnlyArn:1}}'
+          ParameterValue: !Sub '{{resolve:ssm:ReadOnlyArn-${ClientName}:1}}'
         - ParameterKey: SecurityAccountAdminRoleArn
-          ParameterValue: '{{resolve:ssm:AdminRoleArn:1}}'
+          ParameterValue: !Sub '{{resolve:ssm:AdminRoleArn-${ClientName}:1}}'
       TemplateBody: |
         {
             "AWSTemplateFormatVersion": "2010-09-09",

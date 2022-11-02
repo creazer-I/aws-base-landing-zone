@@ -1,6 +1,9 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Account Builder Template for log-archive.
-Parameters:
+Parameters: 
+  ClientName:
+    Type: String
+    Description: Enter Client Name
   LogAccountEmail:
     Description: Account Email address
     Type: String
@@ -27,21 +30,6 @@ Parameters:
     Description: Name of the organization unit to which the account should be moved to.
     Type: String
     Default: None
-    AllowedPattern: .+
-  newrole:
-    Description: >-
-      Role that needs to be created in the newly built account. Use
-      OrganizationAccountAccessRole for assuming roles into the new account,in
-      case this role creation fails.
-    Type: String
-    AllowedPattern: .+
-  newrolepolicy:
-    Description: >-
-      Provide the policy to be attached to the above newrole. Json is only the
-      valid format.
-    Default: >-
-      {"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"*","Resource":"*"}}
-    Type: String
     AllowedPattern: .+
   stackname:
     Description: Name given to the stack deployed in the created account.
@@ -214,8 +202,6 @@ Metadata:
           - CloudtrailBucketName
           - ConfigBucketName
           - s3loggingBucketName
-          - newrole
-          - newrolepolicy
           - LogBaselineTemplate
       - 
         Label: 
@@ -229,7 +215,7 @@ Resources:
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
     Properties:
-      Name: S3CloudtrailBucketName
+      Name: !Sub S3CloudtrailBucketName-${ClientName}
       Type: String
       Value: !Ref CloudtrailBucketName
       Description: s3 bucket Name for cloudtrail logs.
@@ -237,7 +223,7 @@ Resources:
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
     Properties:
-      Name: S3ConfigBucketName
+      Name: !Sub S3ConfigBucketName-${ClientName}
       Type: String
       Value: !Ref ConfigBucketName
       Description: s3 bucket Name for config logs.
@@ -245,7 +231,7 @@ Resources:
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
     Properties:
-      Name: LogAccountId
+      Name: !Sub LogAccountId-${ClientName}
       Type: String
       Value: !GetAtt TriggerLambda.AccountID
       Description: Log Account ID.
@@ -253,7 +239,7 @@ Resources:
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
     Properties:
-      Name: LogAccountEmail
+      Name: !Sub LogAccountEmail-${ClientName}
       Type: String
       Value: !Ref LogAccountEmail
       Description: Log Account Email.
@@ -261,7 +247,7 @@ Resources:
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
     Properties:
-      Name: s3loggingbucketname
+      Name: !Sub s3loggingbucketname-${ClientName}
       Type: String
       Value: !Ref s3loggingBucketName
       Description: s3 bucket Name for cloudwatch log.
@@ -291,8 +277,6 @@ Resources:
         Variables:
           accountemail: !Ref LogAccountEmail
           accountname: !Ref LogAccountName
-          newrolepolicy: !Ref newrolepolicy
-          newrole: !Ref newrole
           organizationunitname: !Ref organizationunitname
           stackname: !Ref stackname
           stackregion: !Ref stackregion
@@ -337,7 +321,7 @@ Resources:
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
     Properties:
-      Name: SecurityAccountId
+      Name: !Sub SecurityAccountId-${ClientName}
       Type: String
       Value: !GetAtt SecurityTriggerLambda.AccountID
       Description: Security Account ID. 
@@ -346,7 +330,7 @@ Resources:
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
     Properties:
-      Name: SecurityAccountEmail
+      Name: !Sub SecurityAccountEmail-${ClientName}
       Type: String
       Value: !Ref SecurityAccountEmail
       Description: Log Account Email.
@@ -355,7 +339,7 @@ Resources:
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
     Properties:
-      Name: AdminRoleArn
+      Name: !Sub AdminRoleArn-${ClientName}
       Type: String
       Value: !Sub 'arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityAdministratorRole'
       Description: admin role arn from security account.
@@ -364,7 +348,7 @@ Resources:
     Type: AWS::SSM::Parameter
     DeletionPolicy: Retain
     Properties:
-      Name: ReadOnlyArn
+      Name: !Sub ReadOnlyArn-${ClientName}
       Type: String
       Value: !Sub 'arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityReadOnlyRole'
       Description: read only role arn from security account.

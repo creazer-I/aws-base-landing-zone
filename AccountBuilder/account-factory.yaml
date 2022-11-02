@@ -6,7 +6,9 @@ Parameters:
     Type: String
     AllowedPattern: ".+"
     ConstraintDescription: "Must provide a valid email address"
-
+  ClientName:
+    Type: String
+    Description: Enter same Client Name when log and security account was created
   accountname:
     Description: "Name of the new AWS Account Name"
     Type: String
@@ -38,7 +40,7 @@ Resources:
   AccountIdParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub '${accountname}AccountId'
+      Name: !Sub '${accountname}AccountId-${ClientName}'
       Type: String
       Value: !GetAtt TriggerLambda.AccountID
       Description:  !Sub '${accountname} Account ID'
@@ -46,7 +48,7 @@ Resources:
     Type: 'AWS::CloudFormation::StackSet'
     DeletionPolicy: Retain
     Properties:
-      StackSetName: !Sub security-aggregator-${accountname}
+      StackSetName: !Sub security-aggregator-${accountname}-${ClientName}
       Description: Adds Account Id to the security Account
       PermissionModel: SERVICE_MANAGED
       AutoDeployment:
@@ -57,7 +59,7 @@ Resources:
             OrganizationalUnitIds:
               - !Ref OrganizationUnitId
             Accounts :
-              - '{{resolve:ssm:SecurityAccountId:1}}'
+              - !Sub '{{resolve:ssm:SecurityAccountId-${ClientName}:1}}'
           Regions:
             - !Ref Region
       ManagedExecution:
@@ -161,7 +163,7 @@ Resources:
   enablesecurityhub:
     Type: 'AWS::CloudFormation::StackSet'
     Properties:
-      StackSetName: !Sub security-hub-enable-${accountname}
+      StackSetName: !Sub security-hub-enable-${accountname}-${ClientName}
       Description: Enables Security Hub
       PermissionModel: SERVICE_MANAGED
       AutoDeployment:
