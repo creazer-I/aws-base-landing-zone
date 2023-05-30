@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Account Builder Template for log-archive.
+Description: Account Builder Template for log-security account.
 Parameters:
   LogAccountEmail:
     Description: Account Email address
@@ -27,21 +27,6 @@ Parameters:
     Description: Name of the organization unit to which the account should be moved to.
     Type: String
     Default: None
-    AllowedPattern: .+
-  newrole:
-    Description: >-
-      Role that needs to be created in the newly built account. Use
-      OrganizationAccountAccessRole for assuming roles into the new account,in
-      case this role creation fails.
-    Type: String
-    AllowedPattern: .+
-  newrolepolicy:
-    Description: >-
-      Provide the policy to be attached to the above newrole. Json is only the
-      valid format.
-    Default: >-
-      {"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"*","Resource":"*"}}
-    Type: String
     AllowedPattern: .+
   stackname:
     Description: Name given to the stack deployed in the created account.
@@ -85,148 +70,56 @@ Parameters:
     Type: String
     Default: baseline-log.yaml
     AllowedPattern: .+
-  AZ1Name:
-    Description: Availability Zone 1 Name in Region
-    Type: String
-    AllowedPattern: .+
-    AllowedValues:
-      - ap-south-1a
-      - ap-south-1b
-      - eu-west-3a
-      - eu-west-3b
-      - eu-west-3c
-      - eu-west-2a
-      - eu-west-2b
-      - eu-west-2c
-      - eu-west-1a
-      - eu-west-1b
-      - eu-west-1c
-      - ap-northeast-3a
-      - ap-northeast-2a
-      - ap-northeast-2c
-      - ap-northeast-1a
-      - ap-northeast-1c
-      - ap-northeast-1d
-      - sa-east-1a
-      - sa-east-1c
-      - ca-central-1a
-      - ca-central-1b
-      - ap-southeast-1a
-      - ap-southeast-1b
-      - ap-southeast-1c
-      - ap-southeast-2a
-      - ap-southeast-2b
-      - ap-southeast-2c
-      - eu-central-1a
-      - eu-central-1b
-      - eu-central-1c
-      - us-east-1a
-      - us-east-1b
-      - us-east-1c
-      - us-east-1d
-      - us-east-1e
-      - us-east-1f
-      - us-east-2a
-      - us-east-2b
-      - us-east-2c
-      - us-west-1b
-      - us-west-1c
-      - us-west-2a
-      - us-west-2b
-      - us-west-2c
-  AZ2Name:
-    Description: Availability Zone 2 Name in Region
-    Type: String
-    AllowedPattern: .+
-    AllowedValues:
-      - ap-south-1a
-      - ap-south-1b
-      - eu-west-3a
-      - eu-west-3b
-      - eu-west-3c
-      - eu-west-2a
-      - eu-west-2b
-      - eu-west-2c
-      - eu-west-1a
-      - eu-west-1b
-      - eu-west-1c
-      - ap-northeast-3a
-      - ap-northeast-2a
-      - ap-northeast-2c
-      - ap-northeast-1a
-      - ap-northeast-1c
-      - ap-northeast-1d
-      - sa-east-1a
-      - sa-east-1c
-      - ca-central-1a
-      - ca-central-1b
-      - ap-southeast-1a
-      - ap-southeast-1b
-      - ap-southeast-1c
-      - ap-southeast-2a
-      - ap-southeast-2b
-      - ap-southeast-2c
-      - eu-central-1a
-      - eu-central-1b
-      - eu-central-1c
-      - us-east-1a
-      - us-east-1b
-      - us-east-1c
-      - us-east-1d
-      - us-east-1e
-      - us-east-1f
-      - us-east-2a
-      - us-east-2b
-      - us-east-2c
-      - us-west-1b
-      - us-west-1c
-      - us-west-2a
-      - us-west-2b
-      - us-west-2c
   SecurityAccountEmail:
-    Description: "Account Email address"
+    Description: Account Email address
     Type: String
-    AllowedPattern: ".+"
-    ConstraintDescription: "Must provide a valid email address"
-
+    AllowedPattern: .+
+    ConstraintDescription: Must provide a valid email address
+  LogLambdafnName:
+    Type: String
+    Default: log-account-creation-function
+  SecurityLambdafnName:
+    Type: String
+    Default: security-account-creation-function
   SecurityAccountName:
-    Description: "Name of the new AWS Account Name"
+    Description: Name of the new AWS Account Name
     Type: String
     Default: security
-    AllowedPattern: ".+"
-    ConstraintDescription: "Provide the account name"
-
+    AllowedPattern: .+
+    ConstraintDescription: Provide the account name
   SecurityBaselineTemplate:
-    Description: "Baseline template to be deployed in the created account."
+    Description: Baseline template to be deployed in the created account.
     Type: String
-    AllowedPattern: ".+"
+    AllowedPattern: .+
     Default: baseline-security.yaml
-
-Metadata: 
-  AWS::CloudFormation::Interface: 
-    ParameterGroups: 
-      - 
-        Label: 
-          default: "Log Account Creation Details"
-        Parameters: 
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: Log Account Creation Details
+        Parameters:
           - LogAccountEmail
           - LogAccountName
           - CloudtrailBucketName
           - ConfigBucketName
           - s3loggingBucketName
-          - newrole
-          - newrolepolicy
           - LogBaselineTemplate
-      - 
-        Label: 
-          default: "Security Account Creation Details"
-        Parameters: 
+      - Label:
+          default: Security Account Creation Details
+        Parameters:
           - SecurityAccountEmail
           - SecurityAccountName
           - SecurityBaselineTemplate
+      - Label:
+          default: Lambda function names
+        Parameters:
+          - LogLambdafnName
+          - SecurityLambdafnName
 Resources:
   bucketParameterA:
-    Type: AWS::SSM::Parameter
+    DependsOn:
+      - AccountBuilderLambda
+    Type: 'AWS::SSM::Parameter'
     DeletionPolicy: Retain
     Properties:
       Name: S3CloudtrailBucketName
@@ -234,7 +127,9 @@ Resources:
       Value: !Ref CloudtrailBucketName
       Description: s3 bucket Name for cloudtrail logs.
   bucketParameterB:
-    Type: AWS::SSM::Parameter
+    DependsOn:
+      - AccountBuilderLambda
+    Type: 'AWS::SSM::Parameter'
     DeletionPolicy: Retain
     Properties:
       Name: S3ConfigBucketName
@@ -242,7 +137,9 @@ Resources:
       Value: !Ref ConfigBucketName
       Description: s3 bucket Name for config logs.
   AccountIdParameterLog:
-    Type: AWS::SSM::Parameter
+    DependsOn:
+      - AccountBuilderLambda
+    Type: 'AWS::SSM::Parameter'
     DeletionPolicy: Retain
     Properties:
       Name: LogAccountId
@@ -250,7 +147,9 @@ Resources:
       Value: !GetAtt TriggerLambda.AccountID
       Description: Log Account ID.
   AccountEmailParameterLog:
-    Type: AWS::SSM::Parameter
+    DependsOn:
+      - AccountBuilderLambda
+    Type: 'AWS::SSM::Parameter'
     DeletionPolicy: Retain
     Properties:
       Name: LogAccountEmail
@@ -258,7 +157,9 @@ Resources:
       Value: !Ref LogAccountEmail
       Description: Log Account Email.
   loggingbucketParameter:
-    Type: AWS::SSM::Parameter
+    DependsOn:
+      - AccountBuilderLambda
+    Type: 'AWS::SSM::Parameter'
     DeletionPolicy: Retain
     Properties:
       Name: s3loggingbucketname
@@ -266,21 +167,21 @@ Resources:
       Value: !Ref s3loggingBucketName
       Description: s3 bucket Name for cloudwatch log.
   LambdaLayer:
-    Type: AWS::Lambda::LayerVersion
-    Properties: 
+    Type: 'AWS::Lambda::LayerVersion'
+    Properties:
       Content:
         S3Bucket: !Ref sourcebucket
         S3Key: requests.zip
       Description: Installs requests module
-
   AccountBuilderLambda:
     Type: 'AWS::Lambda::Function'
     Properties:
+      FunctionName: !Ref LogLambdafnName
       Handler: AccountCreationLambda.main
       Runtime: python3.9
-      Layers: 
+      Layers:
         - !Ref LambdaLayer
-      Role: !GetAtt LambdaExecuteRole.Arn
+      Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 600
       TracingConfig:
         Mode: Active
@@ -289,123 +190,192 @@ Resources:
         S3Key: AccountCreationLambda-log.zip
       Environment:
         Variables:
+          lambda_function_name: !Ref LogLambdafnName
           accountemail: !Ref LogAccountEmail
           accountname: !Ref LogAccountName
-          newrolepolicy: !Ref newrolepolicy
-          newrole: !Ref newrole
           organizationunitname: !Ref organizationunitname
           stackname: !Ref stackname
           stackregion: !Ref stackregion
           sourcebucket: !Ref sourcebucket
           baselinetemplate: !Ref LogBaselineTemplate
-          AZ1Name: !Ref AZ1Name
-          AZ2Name: !Ref AZ2Name
           s3configbucketName: !Ref ConfigBucketName
           s3cloudtrailbucketName: !Ref CloudtrailBucketName
           s3loggingBucketName: !Ref s3loggingBucketName
-  LambdaExecuteRole:
+  LambdaExecutionRole:
     Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          Effect: Allow
-          Principal:
-            Service:
-              - lambda.amazonaws.com
-          Action:
-            - 'sts:AssumeRole'
-      Path: /
-      Policies:
-        - PolicyName: LambdaAccessRole
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              Effect: Allow
-              Action: '*'
-              Resource: '*'
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+  LambdaExecutionPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: lambda-execution-policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogGroup'
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:logs:'
+                - !Ref 'AWS::Region'
+                - ':'
+                - !Ref 'AWS::AccountId'
+                - ':*'
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+            Resource:
+              - !Join 
+                - ''
+                - - 'arn:aws:logs:'
+                  - !Ref 'AWS::Region'
+                  - ':'
+                  - !Ref 'AWS::AccountId'
+                  - ':log-group:/aws/lambda/'
+                  - !Ref LogLambdafnName
+                  - ':*'
+          - Effect: Allow
+            Action: '*'
+            Resource: '*'
+      Roles:
+        - !Ref LambdaExecutionRole
   TriggerLambda:
     Type: 'Custom::TriggerLambda'
     DeletionPolicy: Retain
     DependsOn:
       - AccountBuilderLambda
-      - LambdaExecuteRole
+      - LambdaExecutionRole
+      - LambdaExecutionPolicy
     Properties:
       ServiceToken: !GetAtt AccountBuilderLambda.Arn
-  ### Security
   AccountIdParameterSecurity:
-    Type: AWS::SSM::Parameter
+    Type: 'AWS::SSM::Parameter'
     DeletionPolicy: Retain
     Properties:
       Name: SecurityAccountId
       Type: String
       Value: !GetAtt SecurityTriggerLambda.AccountID
-      Description: Security Account ID. 
-  
+      Description: Security Account ID.
   AccountEmailParameterSecurity:
-    Type: AWS::SSM::Parameter
+    Type: 'AWS::SSM::Parameter'
     DeletionPolicy: Retain
     Properties:
       Name: SecurityAccountEmail
       Type: String
       Value: !Ref SecurityAccountEmail
       Description: Log Account Email.
-  
   adminroleParameter:
-    Type: AWS::SSM::Parameter
+    Type: 'AWS::SSM::Parameter'
     DeletionPolicy: Retain
     Properties:
       Name: AdminRoleArn
       Type: String
-      Value: !Sub 'arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityAdministratorRole'
+      Value: !Sub >-
+        arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityAdministratorRole
       Description: admin role arn from security account.
-      
   readonlyroleParameter:
-    Type: AWS::SSM::Parameter
+    Type: 'AWS::SSM::Parameter'
     DeletionPolicy: Retain
     Properties:
       Name: ReadOnlyArn
       Type: String
-      Value: !Sub 'arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityReadOnlyRole'
+      Value: !Sub >-
+        arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityReadOnlyRole
       Description: read only role arn from security account.
-      
-
   SecurityAccountBuilderLambda:
-    Type: "AWS::Lambda::Function"
+    Type: 'AWS::Lambda::Function'
     Properties:
-      Handler: "AccountCreationLambda.main"
-      Runtime: "python3.9"
-      Layers: 
+      FunctionName: !Ref SecurityLambdafnName
+      Handler: AccountCreationLambda.main
+      Runtime: python3.9
+      Layers:
         - !Ref LambdaLayer
-      Role: !GetAtt LambdaExecuteRole.Arn
+      Role: !GetAtt SecurityLambdaExecutionRole.Arn
       Timeout: 600
       TracingConfig:
-        Mode: "Active"
+        Mode: Active
       Code:
         S3Bucket: !Ref sourcebucket
-        S3Key: "AccountCreationLambda-security.zip"
+        S3Key: AccountCreationLambda-security.zip
       Environment:
         Variables:
-          "accountemail": !Ref SecurityAccountEmail
-          "accountname": !Ref SecurityAccountName
-          "organizationunitname": !Ref "organizationunitname"
-          "stackname": !Ref stackname
-          "stackregion": !Ref stackregion
-          "sourcebucket": !Ref sourcebucket
-          "baselinetemplate": !Ref SecurityBaselineTemplate
-          "AZ1Name": !Ref AZ1Name
-          "AZ2Name": !Ref AZ2Name
-          "AccountId": !GetAtt TriggerLambda.AccountID
-          "Email": !Ref LogAccountEmail
+          lambda_function_name: !Ref SecurityLambdafnName
+          accountemail: !Ref SecurityAccountEmail
+          accountname: !Ref SecurityAccountName
+          organizationunitname: !Ref organizationunitname
+          stackname: !Ref stackname
+          stackregion: !Ref stackregion
+          sourcebucket: !Ref sourcebucket
+          baselinetemplate: !Ref SecurityBaselineTemplate
+          AccountId: !GetAtt TriggerLambda.AccountID
+          Email: !Ref LogAccountEmail
   SecurityTriggerLambda:
-    Type: "Custom::TriggerLambda"
+    Type: 'Custom::TriggerLambda'
     DeletionPolicy: Retain
     DependsOn:
       - AccountBuilderLambda
-      - LambdaExecuteRole
+      - SecurityLambdaExecutionRole
+      - SecurityLambdaExecutionPolicy
     Properties:
       ServiceToken: !GetAtt SecurityAccountBuilderLambda.Arn
-
+  SecurityLambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+  SecurityLambdaExecutionPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: lambda-execution-policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogGroup'
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:logs:'
+                - !Ref 'AWS::Region'
+                - ':'
+                - !Ref 'AWS::AccountId'
+                - ':*'
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+            Resource:
+              - !Join 
+                - ''
+                - - 'arn:aws:logs:'
+                  - !Ref 'AWS::Region'
+                  - ':'
+                  - !Ref 'AWS::AccountId'
+                  - ':log-group:/aws/lambda/'
+                  - !Ref SecurityLambdafnName
+                  - ':*'
+          - Effect: Allow
+            Action: '*'
+            Resource: '*'
+      Roles:
+        - !Ref SecurityLambdaExecutionRole
 Outputs:
   LogAccountStatus:
     Description: Execution Status for Log Account
@@ -424,19 +394,19 @@ Outputs:
     Value: !Ref s3loggingBucketName
   SecurityAccountStatus:
     Description: Execution Status
-    Value: !GetAtt "SecurityTriggerLambda.Message"
-
+    Value: !GetAtt SecurityTriggerLambda.Message
   SecurityAccountID:
     Description: ID of the new account
-    Value: !GetAtt "SecurityTriggerLambda.AccountID"
-  
+    Value: !GetAtt SecurityTriggerLambda.AccountID
   AdminRoleArn:
     Description: Admin role Arn
-    Value: !Sub 'arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityAdministratorRole'
+    Value: !Sub >-
+      arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityAdministratorRole
     Export:
       Name: AdminRoleArn
   ReadOnlyRoleArn:
     Description: Role arn for read-only access.
-    Value:  !Sub 'arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityReadOnlyRole'
+    Value: !Sub >-
+      arn:aws:iam::${SecurityTriggerLambda.AccountID}:role/AWSLandingZoneSecurityReadOnlyRole
     Export:
       Name: ReadOnlyRoleArn
