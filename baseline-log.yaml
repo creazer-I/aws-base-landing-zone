@@ -1,0 +1,149 @@
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Baseline IAM resources for new account
+
+Parameters:
+  s3cloudtrailbucketName:
+    Type: String
+    Description: Bucket Name for cloudtrail
+  
+  s3configbucketName:
+    Type: String
+    Description: Bucket Name for config
+
+  s3loggingBucketName:
+    Type: String
+    Description: Logging Bucket name
+
+  SSEAlgorithm:
+    Type: 'String'
+    Default: 'AES256'
+    Description: S3 bucket SSE Algorithm.
+    AllowedValues:
+    - 'AES256'
+
+Resources:
+
+  # Create buckets using S3-SSE keys for default encryption
+  S3LoggingBucket:
+    DeletionPolicy: Retain
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref s3loggingBucketName
+      AccessControl: LogDeliveryWrite
+      OwnershipControls:
+        Rules:
+        - ObjectOwnership: ObjectWriter
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: !Ref SSEAlgorithm
+  S3CloudtrailBucket:
+    DeletionPolicy: Retain
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref s3cloudtrailbucketName
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref S3LoggingBucket
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: !Ref SSEAlgorithm
+  S3ConfigBucket:
+    DeletionPolicy: Retain
+    DependsOn:
+      - S3CloudtrailBucket
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref s3configbucketName
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref S3LoggingBucket
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: !Ref SSEAlgorithm
+  
+  S3CloudtrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn:
+      - S3CloudtrailBucket
+    Properties:
+      Bucket: !Ref s3cloudtrailbucketName
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AWSBucketPermissionsCheck
+            Effect: Allow
+            Principal:
+              Service:
+                - cloudtrail.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource:
+              - !Sub "arn:aws:s3:::${s3cloudtrailbucketName}"
+          - Sid: AWSBucketDelivery
+            Effect: Allow
+            Principal:
+              Service:
+                - cloudtrail.amazonaws.com
+            Action: s3:PutObject
+            Resource:
+                    - Fn::Join:
+                        - ""
+                        -
+                          - "arn:aws:s3:::"
+                          - !Ref "s3cloudtrailbucketName"
+                          - "/AWSLogs/*/*"
+  S3ConfigBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn:
+      - S3ConfigBucket
+    Properties:
+      Bucket: !Ref  s3configbucketName
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AWSBucketPermissionsCheck
+            Effect: Allow
+            Principal:
+              Service:
+                - config.amazonaws.com
+            Action: s3:GetBucketAcl
+            Resource:
+              - !Sub "arn:aws:s3:::${ s3configbucketName}"
+          - Sid: AWSBucketDelivery
+            Effect: Allow
+            Principal:
+              Service:
+                - config.amazonaws.com
+            Action: s3:PutObject
+            Resource:
+                    - Fn::Join:
+                        - ""
+                        -
+                          - "arn:aws:s3:::"
+                          - !Ref "s3configbucketName"
+                          - "/AWSLogs/*/*"
+  SecurityHub:
+    Type: AWS::SecurityHub::Hub
+    Properties: 
+      Tags: 
+        key1: landingzone
+        key2: true
+
+
+Outputs:
+  CloudtrailBucketName:
+    Description: AWS Landing Zone logging bucket name
+    Value: !Ref S3CloudtrailBucket
+  ConfigBucketName:
+    Description: AWS Landing Zone logging bucket name
+    Value: !Ref S3ConfigBucket
+  LoggingBucketName:
+    Description: AWS Landing Zone s3 access logs bucket name
+    Value:  !Ref S3LoggingBucket
